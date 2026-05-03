@@ -55,28 +55,37 @@ export default function Welcome({ auth }) {
                                 <Link href={route('login')} className="bg-white text-black px-4 py-2 rounded-full hover:bg-cyan-500 hover:text-white transition-all">Access</Link>
                             )}
                         </div>
+
+                        {/* Mobile Action Button */}
+                        <div className="flex md:hidden items-center text-[10px] uppercase tracking-[0.1em] font-bold">
+                            {auth.user ? (
+                                <Link href={route('dashboard')} className="text-cyan-400">Terminal</Link>
+                            ) : (
+                                <Link href={route('login')} className="bg-white text-black px-4 py-1.5 rounded-full">Access</Link>
+                            )}
+                        </div>
                     </nav>
                 </div> 
 
                 {/* HERO SECTION: THE "AAA" STATEMENT */}
-                <section className="relative z-10 px-8 pt-40 pb-32 mx-auto max-w-7xl">
+                <section className="relative z-10 px-6 md:px-8 pt-32 md:pt-40 pb-20 md:pb-32 mx-auto max-w-7xl">
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
                         className="max-w-5xl"
                     >
-                        <span className="inline-block px-3 py-1 mb-8 text-[10px] font-medium tracking-[0.5em] uppercase border border-cyan-500/20 bg-cyan-500/5 text-cyan-400">
+                        <span className="inline-block px-3 py-1 mb-8 text-[9px] md:text-[10px] font-medium tracking-[0.3em] md:tracking-[0.5em] uppercase border border-cyan-500/20 bg-cyan-500/5 text-cyan-400">
                             Architect As A Service
                         </span>
 
-                        <h1 className="text-7xl md:text-9xl font-extralight tracking-[-0.04em] leading-[0.85] mb-10">
+                        <h1 className="text-5xl sm:text-7xl md:text-9xl font-extralight tracking-[-0.04em] leading-[0.85] mb-10 mt-6">
                             ENGINEERING <br />
                             <span className="italic font-serif">Impeccable</span> <br />
                             <span className="font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-zinc-400 to-zinc-800">SOLUTIONS.</span>
                         </h1>
 
-                        <p className="max-w-xl text-lg text-zinc-500 leading-relaxed font-light tracking-wide mb-12">
+                        <p className="max-w-xl text-base md:text-lg text-zinc-500 leading-relaxed font-light tracking-wide mb-12">
                             Kami membangun infrastruktur digital yang tidak hanya berfungsi, tapi terstruktur. Spesialis dalam framework laravel dan react yang modern, cepat, dan aman.
                         </p>
 
@@ -95,24 +104,24 @@ export default function Welcome({ auth }) {
                 </section>
 
                 {/* SOLUTIONS BENTO GRID: THE PROFESSIONAL PROOF */}
-                <section id="solutions" className="relative z-10 px-8 py-32 mx-auto max-w-7xl border-t border-zinc-900">
-                    <div className="mb-16">
-                        <span className="text-cyan-500 text-[10px] tracking-[0.5em] uppercase font-bold">01. Service Ecosystem</span>
-                        <h2 className="text-5xl font-extralight tracking-tight mt-4 uppercase">Advanced Solutions</h2>
+                <section id="solutions" className="relative z-10 px-6 md:px-8 py-20 md:py-32 mx-auto max-w-7xl border-t border-zinc-900">
+                    <div className="mb-12 md:mb-16">
+                        <span className="text-cyan-500 text-[9px] md:text-[10px] tracking-[0.3em] md:tracking-[0.5em] uppercase font-bold">01. Service Ecosystem</span>
+                        <h2 className="text-4xl md:text-5xl font-extralight tracking-tight mt-4 uppercase">Advanced Solutions</h2>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 auto-rows-[280px]">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 auto-rows-auto md:auto-rows-[280px]">
 
                         {/* Major: Academic Excellence */}
-                        <div className="md:col-span-8 md:row-span-2 relative overflow-hidden group border border-zinc-800 bg-zinc-900/10 backdrop-blur-xl p-12">
-                            <Code2 className="absolute -right-10 -bottom-10 w-80 h-80 text-zinc-800/10 group-hover:text-cyan-500/10 transition-colors duration-700" />
+                        <div className="md:col-span-8 md:row-span-2 relative overflow-hidden group border border-zinc-800 bg-zinc-900/10 backdrop-blur-xl p-8 md:p-12 min-h-[400px] md:min-h-0">
+                            <Code2 className="absolute -right-10 -bottom-10 w-64 h-64 md:w-80 md:h-80 text-zinc-800/10 group-hover:text-cyan-500/10 transition-colors duration-700" />
                             <div className="relative h-full flex flex-col justify-end">
-                                <Badge className="w-fit mb-6 rounded-none bg-cyan-500/10 text-cyan-400 border-cyan-500/20 text-[9px] tracking-widest uppercase">Skripsi & Final Projects</Badge>
-                                <h3 className="text-4xl font-light tracking-tight mb-6 uppercase">Academic Excellence</h3>
-                                <p className="max-w-md text-zinc-500 text-sm leading-relaxed mb-8">
+                                <Badge className="w-fit mb-4 md:mb-6 rounded-none bg-cyan-500/10 text-cyan-400 border-cyan-500/20 text-[9px] tracking-widest uppercase">Skripsi & Final Projects</Badge>
+                                <h3 className="text-3xl md:text-4xl font-light tracking-tight mb-4 md:mb-6 uppercase">Academic Excellence</h3>
+                                <p className="max-w-md text-zinc-500 text-sm leading-relaxed mb-6 md:mb-8">
                                     Pengerjaan Tugas Akhir IT dengan standar dokumentasi tinggi. Kami menyusun ERD, Class Diagram, dan Flowchart agar Anda siap menghadapi penguji dengan percaya diri.
                                 </p>
-                                <div className="flex gap-4 text-[10px] font-mono text-zinc-600">
+                                <div className="flex flex-wrap gap-2 md:gap-4 text-[9px] md:text-[10px] font-mono text-zinc-600">
                                     <span>[ CLEAN_CODE ]</span>
                                     <span>[ FULL_DOCS ]</span>
                                     <span>[ SUPPORT_SESSIONS ]</span>
@@ -121,19 +130,19 @@ export default function Welcome({ auth }) {
                         </div>
 
                         {/* Tech Proof: Enterprise Backend */}
-                        <div className="md:col-span-4 md:row-span-1 border border-zinc-800 bg-zinc-950 p-8 flex flex-col justify-between group hover:border-cyan-500/50 transition-all">
-                            <Database className="w-8 h-8 text-zinc-600 group-hover:text-cyan-400" />
+                        <div className="md:col-span-4 md:row-span-1 border border-zinc-800 bg-zinc-950 p-6 md:p-8 flex flex-col justify-between group hover:border-cyan-500/50 transition-all min-h-[200px] md:min-h-0">
+                            <Database className="w-8 h-8 text-zinc-600 group-hover:text-cyan-400 mb-6 md:mb-0" />
                             <div>
-                                <h3 className="text-xs uppercase tracking-[0.2em] mb-3 font-bold">Enterprise Backend</h3>
+                                <h3 className="text-xs uppercase tracking-[0.2em] mb-2 md:mb-3 font-bold">Enterprise Backend</h3>
                                 <p className="text-zinc-600 text-[11px] leading-relaxed italic font-serif">Tulang punggung bisnis yang cepat, aman, dan scalable.</p>
                             </div>
                         </div>
 
                         {/* Tech Proof: Custom Web Apps */}
-                        <div className="md:col-span-4 md:row-span-1 border border-zinc-800 bg-zinc-950 p-8 flex flex-col justify-between group hover:border-purple-500/50 transition-all">
-                            <Layout className="w-8 h-8 text-zinc-600 group-hover:text-purple-400" />
+                        <div className="md:col-span-4 md:row-span-1 border border-zinc-800 bg-zinc-950 p-6 md:p-8 flex flex-col justify-between group hover:border-purple-500/50 transition-all min-h-[200px] md:min-h-0">
+                            <Layout className="w-8 h-8 text-zinc-600 group-hover:text-purple-400 mb-6 md:mb-0" />
                             <div>
-                                <h3 className="text-xs uppercase tracking-[0.2em] mb-3 font-bold">Custom Web Apps</h3>
+                                <h3 className="text-xs uppercase tracking-[0.2em] mb-2 md:mb-3 font-bold">Custom Web Apps</h3>
                                 <p className="text-zinc-600 text-[11px] leading-relaxed italic font-serif">SaaS, Dashboard, & E-commerce dengan estetika premium.</p>
                             </div>
                         </div>
@@ -141,11 +150,11 @@ export default function Welcome({ auth }) {
                 </section>
 
                 {/* THE BLUEPRINT: VERTICAL EXECUTION */}
-                <section id="blueprint" className="relative z-10 px-8 py-32 mx-auto max-w-7xl border-t border-zinc-900 bg-[#070707]">
-                    <div className="grid md:grid-cols-2 gap-20">
+                <section id="blueprint" className="relative z-10 px-6 md:px-8 py-20 md:py-32 mx-auto max-w-7xl border-t border-zinc-900 bg-[#070707]">
+                    <div className="grid md:grid-cols-2 gap-12 md:gap-20">
                         <div>
-                            <span className="text-purple-500 text-[10px] tracking-[0.5em] uppercase font-bold">02. Execution Blueprint</span>
-                            <h2 className="text-6xl font-extralight tracking-tighter mt-4 uppercase leading-none">The <br /> Process</h2>
+                            <span className="text-purple-500 text-[9px] md:text-[10px] tracking-[0.3em] md:tracking-[0.5em] uppercase font-bold">02. Execution Blueprint</span>
+                            <h2 className="text-5xl md:text-6xl font-extralight tracking-tighter mt-4 uppercase leading-none">The <br className="hidden md:block"/> Process</h2>
                             <p className="mt-10 text-zinc-500 max-w-sm leading-relaxed font-light">
                                 Setiap projek ditangani dengan metodologi arsitektur yang ketat untuk memastikan hasil akhir yang presisi.
                             </p>
@@ -176,21 +185,21 @@ export default function Welcome({ auth }) {
                 </section>
 
                 {/* CTA SECTION: THE CONSULTATION */}
-                <section id="contact" className="relative z-10 px-8 py-40 mx-auto max-w-7xl">
-                    <div className="border border-zinc-800 bg-zinc-900/10 p-20 text-center relative overflow-hidden">
+                <section id="contact" className="relative z-10 px-4 md:px-8 py-20 md:py-40 mx-auto max-w-7xl">
+                    <div className="border border-zinc-800 bg-zinc-900/10 p-8 py-16 md:p-20 text-center relative overflow-hidden">
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
 
-                        <h2 className="text-5xl md:text-7xl font-extralight tracking-tighter uppercase mb-10">
-                            Build Your <br /> <span className="italic font-serif">Masterpiece</span> Today.
+                        <h2 className="text-4xl md:text-7xl font-extralight tracking-tighter uppercase mb-6 md:mb-10">
+                            Build Your <br className="hidden md:block" /> <span className="italic font-serif">Masterpiece</span> Today.
                         </h2>
 
-                        <p className="text-zinc-500 max-w-lg mx-auto mb-12 font-light tracking-wide text-sm">
+                        <p className="text-zinc-500 max-w-lg mx-auto mb-10 md:mb-12 font-light tracking-wide text-xs md:text-sm px-4">
                             Jangan biarkan kompleksitas menghambat langkah Anda. Mari berdiskusi tentang visi teknis Anda sekarang.
                         </p>
 
                         <div className="flex justify-center gap-6">
                             <a href="https://wa.me/6289636925505?text=Halo%20Kodai%20Dev,%20saya%20ingin%20konsultasi%20mengenai" target="_blank" rel="noopener noreferrer">
-                                <Button className="h-16 px-12 rounded-none bg-white text-black font-bold uppercase tracking-[0.2em] text-[10px] hover:bg-cyan-500 hover:text-white transition-all">
+                                <Button className="h-14 md:h-16 px-8 md:px-12 rounded-none bg-white text-black font-bold uppercase tracking-[0.1em] md:tracking-[0.2em] text-[10px] hover:bg-cyan-500 hover:text-white transition-all whitespace-nowrap">
                                     Mulai Konsultasi
                                 </Button>
                             </a>
@@ -198,8 +207,8 @@ export default function Welcome({ auth }) {
                     </div>
                 </section>
 
-                <footer className="relative z-10 px-8 py-10 border-t border-zinc-900 text-center">
-                    <span className="text-[10px] text-zinc-700 tracking-[0.8em] uppercase">
+                <footer className="relative z-10 px-6 md:px-8 py-10 border-t border-zinc-900 text-center flex flex-col items-center justify-center">
+                    <span className="text-[8px] md:text-[10px] text-zinc-700 tracking-[0.3em] md:tracking-[0.8em] uppercase max-w-xs md:max-w-none">
                         © 2026 KODAI.DEV — Systems Engineering Studio
                     </span>
                 </footer>
@@ -209,12 +218,12 @@ export default function Welcome({ auth }) {
 }
 function ProcessItem({ num, title, desc }) {
     return (
-        <div className="group border-b border-zinc-900 pb-10">
-            <div className="flex items-start gap-8">
-                <span className="text-zinc-800 font-mono text-4xl font-bold group-hover:text-cyan-500 transition-colors">{num}</span>
+        <div className="group border-b border-zinc-900 pb-8 md:pb-10">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-8">
+                <span className="text-zinc-800 font-mono text-3xl md:text-4xl font-bold group-hover:text-cyan-500 transition-colors">{num}</span>
                 <div>
-                    <h4 className="text-xl uppercase tracking-[0.2em] font-light mb-3">{title}</h4>
-                    <p className="text-zinc-500 text-sm leading-relaxed max-w-md">{desc}</p>
+                    <h4 className="text-lg md:text-xl uppercase tracking-[0.1em] md:tracking-[0.2em] font-light mb-2 md:mb-3">{title}</h4>
+                    <p className="text-zinc-500 text-xs md:text-sm leading-relaxed max-w-md">{desc}</p>
                 </div>
             </div>
         </div>

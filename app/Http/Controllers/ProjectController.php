@@ -43,18 +43,44 @@ class ProjectController extends Controller
         return back();
     }
 
-    public function destroy(Project $project, Request $request)
+    public function destroy(Project $project)
     {
-        // Fitur Keamanan: Pastikan proyek yang dihapus benar-benar milik user yang sedang login
-        if ($project->user_id !== $request->user()->id) {
-            abort(403, 'Anda tidak memiliki akses untuk menghapus proyek ini.');
+        // Pastikan hanya pemilik yang bisa menghapus
+        if (auth()->id() !== $project->user_id) {
+            abort(403, 'Akses ditolak.');
         }
 
-        // Hapus dari database (Data di tabel deployments akan otomatis terhapus 
-        // berkat fitur cascadeOnDelete di file migration kita)
-        $project->delete();
+        $projectDir = '/home/fathurrangga92/kodaidev-apps/' . $project->subdomain;
+        $domain = $project->custom_domain ?: $project->subdomain . '.kodaidev.my.id';
+        $dbName = 'kodai_' . str_replace('-', '_', $project->subdomain);
 
-        return back();
+        try {
+            // 1. Eksekusi Hapus Folder (Source Code)
+            if (\Illuminate\Support\Facades\File::exists($projectDir)) {
+                \Illuminate\Support\Facades\Process::run("rm -rf {$projectDir}");
+            }
+
+            // 2. Eksekusi Hapus Nginx & Reload
+            $nginxAvailable = "/etc/nginx/sites-available/{$domain}";
+            $nginxEnabled = "/etc/nginx/sites-enabled/{$domain}";
+            \Illuminate\Support\Facades\Process::run("sudo rm -f {$nginxAvailable} {$nginxEnabled}");
+            \Illuminate\Support\Facades\Process::run("sudo systemctl reload nginx");
+
+            // 3. Eksekusi Hapus Database
+            $dbCmd = "sudo mysql -e \"DROP DATABASE IF EXISTS \`{$dbName}\`;\"";
+            \Illuminate\Support\Facades\Process::run($dbCmd);
+
+            // 4. (Opsional) Bersihkan Sertifikat SSL dari Certbot agar tidak menumpuk
+            \Illuminate\Support\Facades\Process::run("sudo certbot delete --cert-name {$domain} --non-interactive");
+
+            // 5. Terakhir, Hapus Jejak dari Database Dasbor Kodaidev
+            $project->delete();
+
+            return back()->with('success', 'Proyek beserta file, database, dan jaringannya berhasil dihapus bersih!');
+            
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Gagal membersihkan proyek: ' . $e->getMessage()]);
+        }
     }
 
 }

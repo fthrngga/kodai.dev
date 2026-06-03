@@ -5,39 +5,39 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
-use Exception;
 
 class GitHubController extends Controller
 {
     public function redirect()
     {
-        // Meminta izin 'repo' agar Kodaidev bisa membaca repositori pengguna nantinya
-        return Socialite::driver('github')->scopes(['repo', 'read:user'])->redirect();
+        return Socialite::driver('github')->stateless()->redirect();
     }
 
     public function callback()
     {
         try {
-            $githubUser = Socialite::driver('github')->user();
-
-            // Cari user berdasarkan github_id, jika tidak ada, buat user baru
+            $githubUser = Socialite::driver('github')->stateless()->user();
+            
+            // PERBAIKAN: Cari berdasarkan email, BUKAN github_id
             $user = User::updateOrCreate([
-                'github_id' => $githubUser->id,
+                'email' => $githubUser->email,
             ], [
                 'name' => $githubUser->name ?? $githubUser->nickname,
-                'email' => $githubUser->email,
+                'github_id' => $githubUser->id,
                 'github_token' => $githubUser->token,
                 'github_refresh_token' => $githubUser->refreshToken,
+                // Pastikan password diisi string acak jika kolom password di tabel Anda sifatnya wajib (NOT NULL)
+                'password' => bcrypt(Str::random(24)),
             ]);
 
-            // Login otomatis ke dalam aplikasi
             Auth::login($user);
-
+            
             return redirect()->route('dashboard');
 
-        } catch (Exception $e) {
-            return redirect('/login')->withErrors(['error' => 'Gagal login menggunakan GitHub.']);
+        } catch (\Exception $e) {
+            dd("Sistem OAuth Gagal: " . $e->getMessage());
         }
     }
 }

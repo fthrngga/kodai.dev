@@ -24,6 +24,8 @@ export default function Dashboard({ auth, projects }) {
         branch: 'main',
         custom_domain: '',
         deploy_password: '', // Tambahan untuk keamanan
+        project_type: 'laravel',
+        run_migration: false,
     });
 
     // --- State Modal ---
@@ -78,7 +80,16 @@ export default function Dashboard({ auth, projects }) {
     const openEnvModal = (project) => {
         setSelectedProject(project);
         const domain = project.custom_domain ? project.custom_domain : `${project.subdomain}.kodaidev.my.id`;
-        const template = `APP_NAME="${project.name}"\nAPP_ENV=production\nAPP_KEY=\nAPP_DEBUG=false\nAPP_URL=http://${domain}\n\n# PASTE SISA .ENV ANDA DI BAWAH INI:\n# (TIDAK PERLU memasukkan DB_DATABASE dll, Kodaidev akan membuatnya otomatis!)\n\n`;
+        let template = '';
+        
+        if (project.project_type === 'laravel') {
+            template = `APP_NAME="${project.name}"\nAPP_ENV=production\nAPP_KEY=\nAPP_DEBUG=false\nAPP_URL=http://${domain}\n\n# PASTE SISA .ENV ANDA DI BAWAH INI:\n# (TIDAK PERLU memasukkan DB_DATABASE dll, Kodaidev akan membuatnya otomatis!)\n\n`;
+        } else if (project.project_type === 'nodejs') {
+            template = `PORT=${project.node_port || 3000}\nNODE_ENV=production\n\n# PASTE SISA .ENV ANDA DI BAWAH INI:\n# (Kodaidev secara otomatis menginjeksi variabel DB_HOST, DB_DATABASE, dll. jika Anda butuh MySQL)\n\n`;
+        } else {
+            template = `# PASTE CONFIG .ENV STATIS ANDA DI BAWAH INI:\n# (Variabel ini akan di-inject saat build time oleh bundler seperti Vite)\n\n`;
+        }
+
         envForm.setData('env_text', template);
         setIsEnvModalOpen(true);
     };
@@ -126,13 +137,45 @@ export default function Dashboard({ auth, projects }) {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
+                                    <InputLabel htmlFor="project_type" value="Tipe Proyek" />
+                                    <select
+                                        id="project_type"
+                                        className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white rounded-none focus:border-cyan-500 focus:ring-cyan-500/50"
+                                        value={data.project_type}
+                                        onChange={(e) => setData('project_type', e.target.value)}
+                                        required
+                                    >
+                                        <option value="laravel">Laravel (Inertia/Blade/API)</option>
+                                        <option value="static">Static Web (HTML Native)</option>
+                                        <option value="spa">Single Page App (React/Vue SPA)</option>
+                                        <option value="nodejs">Node.js Server App (Express/NestJS)</option>
+                                    </select>
+                                </div>
+                                <div>
                                     <InputLabel htmlFor="branch" value="Branch GitHub" />
                                     <TextInput id="branch" className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white" value={data.branch} onChange={(e) => setData('branch', e.target.value)} required />
                                 </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <InputLabel htmlFor="custom_domain" value="Domain Kustom" />
                                     <TextInput id="custom_domain" className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white" value={data.custom_domain} onChange={(e) => setData('custom_domain', e.target.value)} placeholder="Opsional" />
                                 </div>
+                                {data.project_type === 'laravel' && (
+                                    <div className="flex items-center mt-6">
+                                        <input
+                                            id="run_migration"
+                                            type="checkbox"
+                                            className="h-4 w-4 rounded border-zinc-800 bg-zinc-900 text-cyan-500 focus:ring-cyan-500/50"
+                                            checked={data.run_migration}
+                                            onChange={(e) => setData('run_migration', e.target.checked)}
+                                        />
+                                        <label htmlFor="run_migration" className="ml-2 text-xs font-light text-zinc-400 select-none cursor-pointer">
+                                            Jalankan Migrasi Database (`artisan migrate`)
+                                        </label>
+                                    </div>
+                                )}
                             </div>
                             <PrimaryButton type="submit">Siapkan Deployment</PrimaryButton>
                         </form>
@@ -174,7 +217,15 @@ export default function Dashboard({ auth, projects }) {
                                     ) : (
                                         projects.map((project) => (
                                             <tr key={project.id} className="hover:bg-zinc-900/20 transition-colors group/row">
-                                                <td className="px-6 py-4 font-medium text-white text-sm">{project.name}</td>
+                                                <td className="px-6 py-4">
+                                                    <div className="font-medium text-white text-sm">{project.name}</div>
+                                                    <div className="text-[9px] tracking-wider text-zinc-500 uppercase mt-0.5 flex gap-2 items-center">
+                                                        <span className="px-1.5 py-0.5 border border-zinc-800 bg-zinc-900/50 text-zinc-400 font-mono font-bold">{project.project_type}</span>
+                                                        {project.project_type === 'nodejs' && project.node_port && (
+                                                            <span className="text-cyan-400 font-mono">Port: {project.node_port}</span>
+                                                        )}
+                                                    </div>
+                                                </td>
                                                 <td className="px-6 py-4 font-mono text-zinc-500 text-[11px] group-hover/row:text-zinc-400 transition-colors">
                                                     {project.github_repo} <span className="text-cyan-500/60 font-bold">#{project.branch}</span>
                                                 </td>

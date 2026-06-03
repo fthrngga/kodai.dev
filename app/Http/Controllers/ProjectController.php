@@ -18,6 +18,8 @@ class ProjectController extends Controller
             'github_repo' => 'required|string|max:255',
             'branch' => 'required|string|max:50',
             'custom_domain' => 'nullable|string|max:255|unique:projects,custom_domain',
+            'project_type' => 'required|string|in:laravel,static,spa,nodejs',
+            'run_migration' => 'nullable|boolean',
         ], [
             'deploy_password.required' => 'Password Master wajib diisi untuk melakukan deploy.',
         ]);
@@ -29,6 +31,9 @@ class ProjectController extends Controller
 
         // Hapus password dari array agar tidak ikut tersimpan ke tabel projects
         unset($validated['deploy_password']);
+
+        // Set default run_migration jika tidak dikirim
+        $validated['run_migration'] = $request->boolean('run_migration', false);
 
         // 2. Buat subdomain dasar yang "Bersih"
         $baseSlug = Str::slug($validated['name']);
@@ -42,6 +47,12 @@ class ProjectController extends Controller
         }
 
         $validated['subdomain'] = $subdomain;
+
+        // Alokasi Port Node otomatis jika tipe NodeJS
+        if ($validated['project_type'] === 'nodejs') {
+            $maxPort = Project::whereNotNull('node_port')->max('node_port');
+            $validated['node_port'] = $maxPort ? $maxPort + 1 : 3000;
+        }
 
         // 4. Simpan ke database
         $project = $request->user()->projects()->create($validated);
@@ -65,6 +76,11 @@ class ProjectController extends Controller
         $dbName = 'kodai_' . str_replace('-', '_', $project->subdomain);
 
         try {
+            // 0. Eksekusi Hapus PM2 jika Node.js
+            if ($project->project_type === 'nodejs') {
+                \Illuminate\Support\Facades\Process::run("pm2 delete kodai_{$project->subdomain}");
+            }
+
             // 1. Eksekusi Hapus Folder (Source Code)
             if (\Illuminate\Support\Facades\File::exists($projectDir)) {
                 \Illuminate\Support\Facades\Process::run("rm -rf {$projectDir}");
@@ -73,7 +89,9 @@ class ProjectController extends Controller
             // 2. Eksekusi Hapus Nginx & Reload
             $nginxAvailable = "/etc/nginx/sites-available/{$domain}";
             $nginxEnabled = "/etc/nginx/sites-enabled/{$domain}";
-            \Illuminate\Support\Facades\Process::run("sudo rm -f {$nginxAvailable} {$nginxEnabled}");
+            $nginxAvailableSub = "/etc/nginx/sites-available/{$project->subdomain}";
+            $nginxEnabledSub = "/etc/nginx/sites-enabled/{$project->subdomain}";
+            \Illuminate\Support\Facades\Process::run("sudo rm -f {$nginxAvailable} {$nginxEnabled} {$nginxAvailableSub} {$nginxEnabledSub}");
             \Illuminate\Support\Facades\Process::run("sudo systemctl reload nginx");
 
             // 3. Eksekusi Hapus Database

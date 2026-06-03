@@ -3,17 +3,29 @@ import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import { Link, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { Toaster, toast } from 'sonner';
+import { useEffect, useState } from 'react';
 
 export default function AuthenticatedLayout({ header, children }) {
-    const user = usePage().props.auth.user;
+    const { auth, flash = {}, errors = {} } = usePage().props;
+    const user = auth.user;
 
-    const [showingNavigationDropdown, setShowingNavigationDropdown] =
-        useState(false);
+    const [showingNavigationDropdown, setShowingNavigationDropdown] = useState(false);
+
+    useEffect(() => {
+        if (flash?.success) toast.success(flash.success);
+        
+        if (errors && Object.keys(errors).length > 0) {
+            Object.values(errors).forEach(errMsg => toast.error(errMsg));
+        }
+    }, [flash, errors]);
 
     return (
         <div className="min-h-screen bg-[#050505] text-white selection:bg-cyan-500/30 selection:text-cyan-200 overflow-x-hidden font-sans relative">
-            {/* ADVANCED BACKGROUND OVERLAY */}
+            
+            <Toaster position="top-right" richColors theme="dark" />
+            
+            {/* ADVANCED BACKGROUND OVERLAY (Persis seperti Welcome.jsx) */}
             <div className="fixed inset-0 z-0 pointer-events-none">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,#1e293b_0%,transparent_50%)] opacity-40" />
                 <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150" />
@@ -82,18 +94,8 @@ export default function AuthenticatedLayout({ header, children }) {
                                     </Dropdown.Trigger>
 
                                     <Dropdown.Content>
-                                        <Dropdown.Link
-                                            href={route('profile.edit')}
-                                        >
-                                            Profil
-                                        </Dropdown.Link>
-                                        <Dropdown.Link
-                                            href={route('logout')}
-                                            method="post"
-                                            as="button"
-                                        >
-                                            Log Out
-                                        </Dropdown.Link>
+                                        <Dropdown.Link href={route('profile.edit')}>Profil</Dropdown.Link>
+                                        <Dropdown.Link href={route('logout')} method="post" as="button">Log Out</Dropdown.Link>
                                     </Dropdown.Content>
                                 </Dropdown>
                             </div>
@@ -108,33 +110,14 @@ export default function AuthenticatedLayout({ header, children }) {
                                 }
                                 className="inline-flex items-center justify-center rounded-none p-2 text-zinc-400 transition duration-150 ease-in-out hover:bg-zinc-900 hover:text-white focus:bg-zinc-900 focus:text-white focus:outline-none border border-zinc-800"
                             >
-                                <svg
-                                    className="h-5 w-5"
-                                    stroke="currentColor"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                >
+                                <svg className="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                                     <path
-                                        className={
-                                            !showingNavigationDropdown
-                                                ? 'inline-flex'
-                                                : 'hidden'
-                                        }
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M4 6h16M4 12h16M4 18h16"
+                                        className={!showingNavigationDropdown ? 'inline-flex' : 'hidden'}
+                                        strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"
                                     />
                                     <path
-                                        className={
-                                            showingNavigationDropdown
-                                                ? 'inline-flex'
-                                                : 'hidden'
-                                        }
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M6 18L18 6M6 6l12 12"
+                                        className={showingNavigationDropdown ? 'inline-flex' : 'hidden'}
+                                        strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"
                                     />
                                 </svg>
                             </button>
@@ -142,42 +125,21 @@ export default function AuthenticatedLayout({ header, children }) {
                     </div>
                 </div>
 
-                <div
-                    className={
-                        (showingNavigationDropdown ? 'block' : 'hidden') +
-                        ' sm:hidden border-b border-zinc-900 bg-zinc-950/90 backdrop-blur-lg'
-                    }
-                >
+                <div className={(showingNavigationDropdown ? 'block' : 'hidden') + ' sm:hidden border-b border-zinc-900 bg-zinc-950/90 backdrop-blur-lg'}>
                     <div className="space-y-1 pb-3 pt-2">
-                        <ResponsiveNavLink
-                            href={route('dashboard')}
-                            active={route().current('dashboard')}
-                        >
+                        <ResponsiveNavLink href={route('dashboard')} active={route().current('dashboard')}>
                             Pusat Kendali
                         </ResponsiveNavLink>
                     </div>
 
                     <div className="border-t border-zinc-900 pb-1 pt-4">
                         <div className="px-4">
-                            <div className="text-xs uppercase tracking-wider font-medium text-white">
-                                {user.name}
-                            </div>
-                            <div className="text-[10px] text-zinc-500 font-mono">
-                                {user.email}
-                            </div>
+                            <div className="text-xs uppercase tracking-wider font-medium text-white">{user.name}</div>
+                            <div className="text-[10px] text-zinc-500 font-mono">{user.email}</div>
                         </div>
-
                         <div className="mt-3 space-y-1">
-                            <ResponsiveNavLink href={route('profile.edit')}>
-                                Profil
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink
-                                method="post"
-                                href={route('logout')}
-                                as="button"
-                            >
-                                Log Out
-                            </ResponsiveNavLink>
+                            <ResponsiveNavLink href={route('profile.edit')}>Profil</ResponsiveNavLink>
+                            <ResponsiveNavLink method="post" href={route('logout')} as="button">Log Out</ResponsiveNavLink>
                         </div>
                     </div>
                 </div>

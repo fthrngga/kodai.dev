@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -8,24 +8,63 @@ import TextInput from '@/Components/TextInput';
 import Modal from '@/Components/Modal';
 import SecondaryButton from '@/Components/SecondaryButton';
 
+// Komponen Loading Spinner
+const Spinner = () => (
+    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+);
+
 export default function Dashboard({ auth, projects }) {
-    // --- State untuk Form Deploy Baru ---
-    const { data, setData, post, processing, errors, reset } = useForm({
+    // --- State untuk Form Deploy Baru & Password Master ---
+    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         name: '',
         github_repo: '',
         branch: 'main',
         custom_domain: '',
+        deploy_password: '', // Tambahan untuk keamanan
     });
 
-    // --- State untuk Modal Environment (.env) ---
+    // --- State Modal ---
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
     const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
     const [selectedProject, setSelectedProject] = useState(null);
     const envForm = useForm({ env_text: '' });
 
-    // Fungsi Submit Deploy
-    const submit = (e) => {
+    // --- REALTIME POLLING: Cek otomatis tanpa refresh ---
+    const isDeploying = projects?.some(project => project.status.toLowerCase() === 'pending');
+
+    useEffect(() => {
+        let interval;
+        if (isDeploying) {
+            // Ping server tiap 3 detik hanya di balik layar
+            interval = setInterval(() => {
+                router.reload({ only: ['projects'], preserveScroll: true, preserveState: true });
+            }, 3000);
+        }
+        return () => clearInterval(interval);
+    }, [isDeploying]);
+
+    // Buka Modal Password
+    const openPasswordModal = (e) => {
         e.preventDefault();
-        post(route('projects.store'), { onSuccess: () => reset() });
+        setIsPasswordModalOpen(true);
+    };
+
+    // Eksekusi Deploy setelah masukin password
+    const executeDeploy = (e) => {
+        e.preventDefault();
+        post(route('projects.store'), { 
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsPasswordModalOpen(false);
+                reset();
+            },
+            onError: () => {
+                setData('deploy_password', ''); // Kosongkan sandi jika salah
+            }
+        });
     };
 
     // Fungsi Hapus
@@ -38,11 +77,8 @@ export default function Dashboard({ auth, projects }) {
     // Fungsi Membuka Modal .env
     const openEnvModal = (project) => {
         setSelectedProject(project);
-        
-        // Buat template .env dasar agar pengguna tidak bingung
         const domain = project.custom_domain ? project.custom_domain : `${project.subdomain}.kodaidev.my.id`;
         const template = `APP_NAME="${project.name}"\nAPP_ENV=production\nAPP_KEY=\nAPP_DEBUG=false\nAPP_URL=http://${domain}\n\n# PASTE SISA .ENV ANDA DI BAWAH INI:\n# (TIDAK PERLU memasukkan DB_DATABASE dll, Kodaidev akan membuatnya otomatis!)\n\n`;
-        
         envForm.setData('env_text', template);
         setIsEnvModalOpen(true);
     };
@@ -53,10 +89,12 @@ export default function Dashboard({ auth, projects }) {
         envForm.post(route('projects.env.store', selectedProject.id), {
             onSuccess: () => {
                 setIsEnvModalOpen(false);
-                alert('✨ Berhasil! Database telah terbuat dan migrasi selesai.');
+                // Alert bawaan dihapus, diganti oleh Sonner di Layout!
             }
         });
-    };    return (
+    };    
+
+    return (
         <AuthenticatedLayout
             user={auth.user}
             header={<h2 className="text-sm font-light tracking-[0.2em] uppercase text-white">Pusat Kendali <span className="text-cyan-400 font-bold">Kodaidev</span></h2>}
@@ -71,41 +109,48 @@ export default function Dashboard({ auth, projects }) {
                         <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent opacity-50" />
                         <header className="mb-6">
                             <span className="text-[9px] tracking-[0.3em] uppercase text-cyan-400 font-medium">01. Code Deployment</span>
-                            <h2 className="text-xl font-light tracking-tight text-white uppercase mt-1">🚀 Deploy Proyek Baru</h2>
+                            <h2 className="text-xl font-light tracking-tight text-white uppercase mt-1">Deploy Proyek Baru</h2>
                             <p className="mt-1 text-xs text-zinc-500 font-light">Hubungkan repositori GitHub Anda untuk proses integrasi dan migrasi otomatis.</p>
                         </header>
                         
-                        <form onSubmit={submit} className="mt-6 space-y-6 max-w-xl">
+                        <form onSubmit={openPasswordModal} className="mt-6 space-y-6 max-w-xl">
                             <div>
                                 <InputLabel htmlFor="name" value="Nama Proyek" />
-                                <TextInput id="name" className="mt-1 block w-full text-xs font-mono py-2.5 px-4" value={data.name} onChange={(e) => setData('name', e.target.value)} required placeholder="Misal: Sanjai E-Commerce" />
+                                <TextInput id="name" className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white" value={data.name} onChange={(e) => setData('name', e.target.value)} required placeholder="Misal: Sanjai E-Commerce" />
                                 <InputError className="mt-2 text-xs text-red-400" message={errors.name} />
                             </div>
                             <div>
                                 <InputLabel htmlFor="github_repo" value="Path Repositori GitHub" />
-                                <TextInput id="github_repo" className="mt-1 block w-full text-xs font-mono py-2.5 px-4" value={data.github_repo} onChange={(e) => setData('github_repo', e.target.value)} required placeholder="Misal: fathurrangga/sanjai-app" />
+                                <TextInput id="github_repo" className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white" value={data.github_repo} onChange={(e) => setData('github_repo', e.target.value)} required placeholder="Misal: fathurrangga/sanjai-app" />
                                 <InputError className="mt-2 text-xs text-red-400" message={errors.github_repo} />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <InputLabel htmlFor="branch" value="Branch GitHub" />
-                                    <TextInput id="branch" className="mt-1 block w-full text-xs font-mono py-2.5 px-4" value={data.branch} onChange={(e) => setData('branch', e.target.value)} required />
+                                    <TextInput id="branch" className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white" value={data.branch} onChange={(e) => setData('branch', e.target.value)} required />
                                 </div>
                                 <div>
                                     <InputLabel htmlFor="custom_domain" value="Domain Kustom" />
-                                    <TextInput id="custom_domain" className="mt-1 block w-full text-xs font-mono py-2.5 px-4" value={data.custom_domain} onChange={(e) => setData('custom_domain', e.target.value)} placeholder="Opsional" />
+                                    <TextInput id="custom_domain" className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white" value={data.custom_domain} onChange={(e) => setData('custom_domain', e.target.value)} placeholder="Opsional" />
                                 </div>
                             </div>
-                            <PrimaryButton disabled={processing}>Mulai Deploy</PrimaryButton>
+                            <PrimaryButton type="submit">Siapkan Deployment</PrimaryButton>
                         </form>
                     </div>
 
                     {/* --- DAFTAR PROYEK --- */}
                     <div className="p-6 sm:p-8 bg-zinc-900/10 border border-zinc-900 backdrop-blur-xl relative overflow-hidden group">
                         <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-purple-500/30 to-transparent opacity-50" />
-                        <header className="mb-6">
-                            <span className="text-[9px] tracking-[0.3em] uppercase text-purple-400 font-medium">02. Active Instances</span>
-                            <h2 className="text-xl font-light tracking-tight text-white uppercase mt-1">Daftar Proyek Aktif</h2>
+                        <header className="mb-6 flex justify-between items-center">
+                            <div>
+                                <span className="text-[9px] tracking-[0.3em] uppercase text-purple-400 font-medium">02. Active Instances</span>
+                                <h2 className="text-xl font-light tracking-tight text-white uppercase mt-1">Daftar Proyek Aktif</h2>
+                            </div>
+                            {isDeploying && (
+                                <div className="text-[10px] text-zinc-400 font-mono flex items-center gap-2">
+                                    <Spinner /> Syncing with Server...
+                                </div>
+                            )}
                         </header>
 
                         <div className="overflow-x-auto">
@@ -134,27 +179,28 @@ export default function Dashboard({ auth, projects }) {
                                                     {project.github_repo} <span className="text-cyan-500/60 font-bold">#{project.branch}</span>
                                                 </td>
                                                 <td className="px-6 py-4 font-mono text-[11px]">
-                                                    <a
-                                                        href={`http://${project.custom_domain || project.subdomain + '.kodaidev.my.id'}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-cyan-400 hover:text-cyan-300 hover:underline inline-flex items-center gap-1"
-                                                    >
-                                                        {project.custom_domain || project.subdomain + '.kodaidev.my.id'}
-                                                        <svg className="w-3 h-3 opacity-50 group-hover/row:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                                        </svg>
-                                                    </a>
+                                                    {project.status === 'pending' ? (
+                                                        <span className="text-zinc-600">Menunggu IP...</span>
+                                                    ) : (
+                                                        <a
+                                                            href={`https://${project.custom_domain || project.subdomain + '.kodaidev.my.id'}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-cyan-400 hover:text-cyan-300 hover:underline inline-flex items-center gap-1"
+                                                        >
+                                                            {project.custom_domain || project.subdomain + '.kodaidev.my.id'}
+                                                        </a>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <span className={`inline-block px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider border ${project.status === 'active' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'}`}>
+                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider border ${project.status.toLowerCase() === 'active' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20 animate-pulse'}`}>
+                                                        {project.status.toLowerCase() === 'pending' && <Spinner />}
                                                         {project.status}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="inline-flex gap-2">
-                                                        {/* TOMBOL BARU: SET ENV */}
-                                                        {project.status === 'active' && (
+                                                        {project.status.toLowerCase() === 'active' && (
                                                             <button
                                                                 onClick={() => openEnvModal(project)}
                                                                 className="text-[10px] uppercase tracking-wider text-cyan-400 hover:text-cyan-300 font-bold border border-cyan-500/20 hover:border-cyan-500 bg-cyan-500/5 hover:bg-cyan-500/10 px-3 py-1.5 transition-all active:scale-95"
@@ -177,21 +223,52 @@ export default function Dashboard({ auth, projects }) {
                             </table>
                         </div>
                     </div>
-
                 </div>
             </div>
 
+            {/* --- MODAL PASSWORD MASTER --- */}
+            <Modal show={isPasswordModalOpen} onClose={() => { setIsPasswordModalOpen(false); clearErrors(); }}>
+                <div className="p-6 bg-zinc-950 border border-zinc-800 text-white relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-red-500 via-yellow-500 to-red-500" />
+                    <h2 className="text-lg font-light uppercase tracking-widest text-white">
+                        <span className="text-red-500 font-bold mr-2">!</span>Otorisasi Keamanan
+                    </h2>
+                    <p className="mt-2 text-xs text-zinc-400 font-mono leading-relaxed">
+                        Sistem mendeteksi upaya eksekusi pembuatan server baru. Harap masukkan Password Master Kodaidev untuk mengotorisasi perintah.
+                    </p>
+
+                    <form onSubmit={executeDeploy} className="mt-6">
+                        <InputLabel htmlFor="deploy_password" value="Password Master" className="sr-only" />
+                        <TextInput
+                            id="deploy_password"
+                            type="password"
+                            name="deploy_password"
+                            value={data.deploy_password}
+                            onChange={(e) => setData('deploy_password', e.target.value)}
+                            className="mt-1 block w-full bg-black border-zinc-800 text-red-400 text-center tracking-[0.5em] font-mono focus:border-red-500 focus:ring-red-500/50"
+                            isFocused
+                            placeholder="••••••••"
+                        />
+                        <InputError message={errors.deploy_password} className="mt-2 text-center text-red-500 bg-red-500/10 py-1" />
+
+                        <div className="mt-6 flex justify-end gap-3">
+                            <SecondaryButton onClick={() => { setIsPasswordModalOpen(false); clearErrors(); }}>Batal</SecondaryButton>
+                            <PrimaryButton disabled={processing} className="bg-red-600 hover:bg-red-500">
+                                {processing ? <><Spinner /> Memverifikasi...</> : 'Otorisasi & Deploy'}
+                            </PrimaryButton>
+                        </div>
+                    </form>
+                </div>
+            </Modal>
+
             {/* --- MODAL POP-UP ENVIRONMENT --- */}
             <Modal show={isEnvModalOpen} onClose={() => setIsEnvModalOpen(false)}>
-                <div className="p-6">
+                <div className="p-6 bg-zinc-950 border border-zinc-800">
                     <header className="mb-4">
                         <span className="text-[9px] tracking-[0.3em] uppercase text-cyan-400 font-medium">03. Environment Setup</span>
                         <h2 className="text-xl font-light tracking-tight text-white uppercase mt-1">
-                            Konfigurasi Environment ({selectedProject?.name})
+                            Konfigurasi ({selectedProject?.name})
                         </h2>
-                        <p className="text-xs text-zinc-500 font-light mt-1">
-                            Salin dan tempel isi berkas <code className="bg-zinc-900 text-zinc-300 px-1.5 py-0.5 rounded font-mono text-[10px]">.env</code> lokal Anda ke sini. Database credentials akan disuntikkan otomatis oleh sistem.
-                        </p>
                     </header>
 
                     <form onSubmit={submitEnv}>
@@ -207,7 +284,7 @@ export default function Dashboard({ auth, projects }) {
                         <div className="mt-6 flex justify-end gap-3">
                             <SecondaryButton onClick={() => setIsEnvModalOpen(false)}>Batal</SecondaryButton>
                             <PrimaryButton disabled={envForm.processing}>
-                                {envForm.processing ? 'Memproses Database...' : 'Simpan & Jalankan Migrasi'}
+                                {envForm.processing ? <><Spinner /> Merakit Sistem...</> : 'Simpan & Migrasi'}
                             </PrimaryButton>
                         </div>
                     </form>

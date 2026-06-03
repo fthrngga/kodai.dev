@@ -11,13 +11,24 @@ class ProjectController extends Controller
 {
     public function store(Request $request)
     {
-        // 1. Validasi input
+        // 1. Validasi input + Password Master Kodaidev
         $validated = $request->validate([
+            'deploy_password' => 'required|string',
             'name' => 'required|string|max:255',
             'github_repo' => 'required|string|max:255',
             'branch' => 'required|string|max:50',
             'custom_domain' => 'nullable|string|max:255|unique:projects,custom_domain',
+        ], [
+            'deploy_password.required' => 'Password Master wajib diisi untuk melakukan deploy.',
         ]);
+
+        // Cek jika password salah
+        if ($request->deploy_password !== '11223344') {
+            return back()->withErrors(['deploy_password' => 'Akses Ditolak: Password Master Kodaidev salah!']);
+        }
+
+        // Hapus password dari array agar tidak ikut tersimpan ke tabel projects
+        unset($validated['deploy_password']);
 
         // 2. Buat subdomain dasar yang "Bersih"
         $baseSlug = Str::slug($validated['name']);
@@ -26,14 +37,13 @@ class ProjectController extends Controller
         // 3. Pengecekan Duplikasi Cerdas
         $counter = 1;
         while (Project::where('subdomain', $subdomain)->exists()) {
-            // Jika 'sanjai' sudah ada, ubah jadi 'sanjai-1', cek lagi, dst.
             $subdomain = $baseSlug . '-' . $counter;
             $counter++;
         }
 
         $validated['subdomain'] = $subdomain;
 
-        // 4. Simpan ke database (Ubah bagian ini)
+        // 4. Simpan ke database
         $project = $request->user()->projects()->create($validated);
 
         // 5. Lempar tugas ke Pekerja Latar Belakang!

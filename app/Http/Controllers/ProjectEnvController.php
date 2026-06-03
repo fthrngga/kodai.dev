@@ -33,29 +33,20 @@ class ProjectEnvController extends Controller
             $envContent = preg_replace('/^DB_.*$/m', '', $request->env_text);
             
             $dbConfig = "\n\n# --- AUTO INJECTED BY KODAIDEV ---\n";
-            $dbConfig .= "DB_CONNECTION=mysql\nDB_HOST=127.0.0.1\nDB_PORT=3306\n";
+            $dbConfig .= "DB_CONNECTION=mysql\nDB_HOST=localhost\nDB_PORT=3306\n"; // Ubah 127.0.0.1 jadi localhost untuk bypass TCP
             $dbConfig .= "DB_DATABASE={$dbName}\nDB_USERNAME=fathur\nDB_PASSWORD=11223344\n";
             
             File::put($projectDir . '/.env', trim($envContent) . $dbConfig);
 
-            // 3. Eksekusi Artisan Terstruktur
+            // 3. Eksekusi Artisan Terstruktur (Ditambah Composer & NPM)
             $commands = [
-                // 1. Unduh library
-                "composer install --no-interaction --prefer-dist --optimize-autoloader", 
-                
-                // 2. HANYA bersihkan cache konfigurasi (Aman, tidak menyentuh database)
+                "composer install --no-interaction --prefer-dist --optimize-autoloader",
                 "php artisan config:clear",           
-                
-                // 3. Buat kunci aplikasi
                 "php artisan key:generate --force",
-                
-                // 4. Eksekusi pembuatan tabel database (termasuk tabel cache)
-                "php artisan migrate --force",   
-                
-                // 5. Hubungkan folder publik
+                "php artisan migrate --force",  
                 "php artisan storage:link",
-                
-                // 6. Sekarang aman menjalankan optimize:clear penuh karena tabel sudah ada
+                "npm install",
+                "npm run build",
                 "php artisan optimize:clear"            
             ];
 
@@ -64,7 +55,7 @@ class ProjectEnvController extends Controller
                     ->env([
                         'APP_ENV' => 'production',
                         'DB_CONNECTION' => 'mysql',
-                        'DB_HOST' => '127.0.0.1',
+                        'DB_HOST' => 'localhost', // Ubah juga disini
                         'DB_PORT' => '3306',
                         'DB_DATABASE' => $dbName,
                         'DB_USERNAME' => 'fathur',
@@ -78,11 +69,26 @@ class ProjectEnvController extends Controller
                 }
             }
 
-            // 4. Otomatisasi SSL (Certbot)
-            $sslCmd = "sudo certbot --nginx -d {$domain} --non-interactive --agree-tos --register-unsafely-without-email";
-            Process::run($sslCmd); 
+            // 4. SELF-HEALING NGINX: Buat server block jika belum ada
+            $nginxAvailable = "/etc/nginx/sites-available/{$domain}";
+            if (!File::exists($nginxAvailable)) {
+                $nginxConfig = "server {\n listen 80;\n server_name {$domain};\n root {$projectDir}/public;\n index index.php index.html index.htm;\n location / {\n try_files \$uri \$uri/ /index.php?\$query_string;\n }\n location ~ \\.php$ {\n include snippets/fastcgi-php.conf;\n fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;\n }\n}\n";
+                
+                $tmpPath = storage_path("app/tmp_nginx_{$domain}");
+                File::put($tmpPath, $nginxConfig);
+                Process::run("sudo cp {$tmpPath} {$nginxAvailable} && sudo ln -s {$nginxAvailable} /etc/nginx/sites-enabled/ && sudo systemctl reload nginx");
+                @unlink($tmpPath); 
+            }
 
-            return back()->with('success', 'Sistem otomatisasi sukses: DB, Migrasi (serta Seed), dan SSL terpasang!');
+            // 5. Otomatisasi SSL (Certbot) dengan Error Handling
+            $sslCmd = "sudo certbot --nginx -d {$domain} --non-interactive --agree-tos --register-unsafely-without-email";
+            $processSsl = Process::run($sslCmd); 
+
+            if ($processSsl->failed()) {
+                return back()->with('success', 'Sistem berhasil di-deploy, namun SSL (HTTPS) gagal dipasang. Error: ' . $processSsl->errorOutput());
+            }
+
+            return back()->with('success', 'Sistem otomatisasi sukses: Composer, NPM, DB, Migrasi, dan SSL terpasang sempurna!');
             
         } catch (\Exception $e) {
             return back()->withErrors(['env_text' => 'Gagal: ' . $e->getMessage()]);

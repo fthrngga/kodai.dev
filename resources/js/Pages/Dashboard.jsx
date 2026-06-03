@@ -591,10 +591,10 @@ export default function Dashboard({ auth, projects }) {
                             {/* Line Numbers */}
                             <div 
                                 id="editor-line-numbers" 
-                                className="w-10 bg-zinc-900 border-r border-zinc-800 text-right pr-2.5 py-4 select-none overflow-hidden text-[10px] font-mono text-zinc-600 leading-5 h-full"
+                                className="w-10 bg-zinc-900 border-r border-zinc-800 text-right pr-2.5 py-4 select-none overflow-hidden text-[10px] font-mono text-zinc-600 leading-[20px] h-full"
                             >
                                 {Array.from({ length: editorContent.split('\n').length }, (_, i) => i + 1).map(line => (
-                                    <div key={line} className="h-5">{line}</div>
+                                    <div key={line} className="h-[20px] leading-[20px]">{line}</div>
                                 ))}
                             </div>
 
@@ -603,7 +603,7 @@ export default function Dashboard({ auth, projects }) {
                                 value={editorContent}
                                 onChange={(e) => setEditorContent(e.target.value)}
                                 onScroll={handleEditorScroll}
-                                className="flex-1 bg-zinc-950 text-green-400 font-mono text-[10px] py-4 px-3.5 focus:outline-none focus:ring-0 border-0 resize-none leading-5 h-full overflow-y-auto"
+                                className="flex-1 bg-zinc-950 text-green-400 font-mono text-[10px] py-4 px-3.5 focus:outline-none focus:ring-0 border-0 resize-none leading-[20px] h-full overflow-auto whitespace-pre"
                                 placeholder="// Mulai ketik kode di sini..."
                                 spellCheck="false"
                             />

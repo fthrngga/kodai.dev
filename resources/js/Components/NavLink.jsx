@@ -10,11 +10,11 @@ export default function NavLink({
         <Link
             {...props}
             className={
-                'inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none ' +
+                'inline-flex items-center border-b-2 px-1 pt-1 text-[11px] uppercase tracking-[0.2em] font-medium leading-5 transition duration-150 ease-in-out focus:outline-none ' +
                 (active
-                    ? 'border-indigo-400 text-gray-900 focus:border-indigo-700'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 focus:border-gray-300 focus:text-gray-700') +
-                className
+                    ? 'border-cyan-400 text-cyan-400 focus:border-cyan-300'
+                    : 'border-transparent text-zinc-400 hover:border-zinc-800 hover:text-white focus:border-zinc-800 focus:text-white') +
+                ' ' + className
             }
         >
             {children}

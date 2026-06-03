@@ -26,6 +26,8 @@ export default function Dashboard({ auth, projects }) {
         deploy_password: '', // Tambahan untuk keamanan
         project_type: 'laravel',
         run_migration: false,
+        source_type: 'github',
+        uploaded_file: null,
     });
 
     // --- State Modal ---
@@ -130,32 +132,107 @@ export default function Dashboard({ auth, projects }) {
                                 <TextInput id="name" className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white" value={data.name} onChange={(e) => setData('name', e.target.value)} required placeholder="Misal: Sanjai E-Commerce" />
                                 <InputError className="mt-2 text-xs text-red-400" message={errors.name} />
                             </div>
+
                             <div>
-                                <InputLabel htmlFor="github_repo" value="Path Repositori GitHub" />
-                                <TextInput id="github_repo" className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white" value={data.github_repo} onChange={(e) => setData('github_repo', e.target.value)} required placeholder="Misal: fathurrangga/sanjai-app" />
-                                <InputError className="mt-2 text-xs text-red-400" message={errors.github_repo} />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <InputLabel htmlFor="project_type" value="Tipe Proyek" />
-                                    <select
-                                        id="project_type"
-                                        className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white rounded-none focus:border-cyan-500 focus:ring-cyan-500/50"
-                                        value={data.project_type}
-                                        onChange={(e) => setData('project_type', e.target.value)}
-                                        required
+                                <label className="text-[10px] uppercase font-semibold text-zinc-500 tracking-wider">Metode Deployment</label>
+                                <div className="grid grid-cols-2 gap-4 mt-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setData('source_type', 'github')}
+                                        className={`py-3 px-4 text-xs font-mono text-center border font-bold uppercase transition-all tracking-wider ${data.source_type === 'github' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.05)]' : 'bg-zinc-950 text-zinc-600 border-zinc-900 hover:border-zinc-800'}`}
                                     >
-                                        <option value="laravel">Laravel (Inertia/Blade/API)</option>
-                                        <option value="static">Static Web (HTML Native)</option>
-                                        <option value="spa">Single Page App (React/Vue SPA)</option>
-                                        <option value="nodejs">Node.js Server App (Express/NestJS)</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <InputLabel htmlFor="branch" value="Branch GitHub" />
-                                    <TextInput id="branch" className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white" value={data.branch} onChange={(e) => setData('branch', e.target.value)} required />
+                                        🐱 GitHub Repository
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setData('source_type', 'upload')}
+                                        className={`py-3 px-4 text-xs font-mono text-center border font-bold uppercase transition-all tracking-wider ${data.source_type === 'upload' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.05)]' : 'bg-zinc-950 text-zinc-600 border-zinc-900 hover:border-zinc-800'}`}
+                                    >
+                                        📁 Direct File Upload
+                                    </button>
                                 </div>
                             </div>
+
+                            {data.source_type === 'github' ? (
+                                <>
+                                    <div>
+                                        <InputLabel htmlFor="github_repo" value="Path Repositori GitHub" />
+                                        <TextInput id="github_repo" className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white" value={data.github_repo} onChange={(e) => setData('github_repo', e.target.value)} required placeholder="Misal: fathurrangga/sanjai-app" />
+                                        <InputError className="mt-2 text-xs text-red-400" message={errors.github_repo} />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <InputLabel htmlFor="project_type" value="Tipe Proyek" />
+                                            <select
+                                                id="project_type"
+                                                className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white rounded-none focus:border-cyan-500 focus:ring-cyan-500/50"
+                                                value={data.project_type}
+                                                onChange={(e) => setData('project_type', e.target.value)}
+                                                required
+                                            >
+                                                <option value="laravel">Laravel (Inertia/Blade/API)</option>
+                                                <option value="static">Static Web (HTML Native)</option>
+                                                <option value="spa">Single Page App (React/Vue SPA)</option>
+                                                <option value="nodejs">Node.js Server App (Express/NestJS)</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <InputLabel htmlFor="branch" value="Branch GitHub" />
+                                            <TextInput id="branch" className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white" value={data.branch} onChange={(e) => setData('branch', e.target.value)} required />
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div>
+                                        <InputLabel htmlFor="uploaded_file" value="Pilih File (.zip, .html, .php)" />
+                                        <div className="mt-1 relative border border-dashed border-zinc-800 bg-zinc-950/50 hover:bg-zinc-950 p-6 flex flex-col items-center justify-center cursor-pointer transition-colors group">
+                                            <input
+                                                id="uploaded_file"
+                                                type="file"
+                                                accept=".zip,.html,.php"
+                                                onChange={(e) => setData('uploaded_file', e.target.files[0])}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                required
+                                            />
+                                            <div className="text-center space-y-2">
+                                                <div className="text-zinc-400 group-hover:text-cyan-400 transition-colors text-lg">
+                                                    {data.uploaded_file ? '📄' : '📤'}
+                                                </div>
+                                                <div className="text-xs font-mono text-zinc-400 group-hover:text-zinc-300 transition-colors">
+                                                    {data.uploaded_file ? data.uploaded_file.name : 'Pilih berkas atau seret kemari'}
+                                                </div>
+                                                <div className="text-[10px] text-zinc-600 font-mono">
+                                                    {data.uploaded_file ? `${(data.uploaded_file.size / 1024 / 1024).toFixed(2)} MB` : 'Maksimal 50MB (.zip, .html, .php)'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <InputError className="mt-2 text-xs text-red-400" message={errors.uploaded_file} />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <InputLabel htmlFor="project_type" value="Tipe Proyek (Deteksi Otomatis)" />
+                                            <select
+                                                id="project_type"
+                                                className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white rounded-none focus:border-cyan-500 focus:ring-cyan-500/50"
+                                                value={data.project_type}
+                                                onChange={(e) => setData('project_type', e.target.value)}
+                                            >
+                                                <option value="">Auto-Detect</option>
+                                                <option value="laravel">PHP Native / Laravel</option>
+                                                <option value="static">Static Web (HTML Native)</option>
+                                                <option value="spa">Single Page App (React/Vue SPA)</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-zinc-500 text-xs font-medium font-mono select-none">&nbsp;</label>
+                                            <div className="mt-2.5 text-[10px] text-zinc-500 font-light leading-relaxed">
+                                                * ZIP otomatis diekstrak. File PHP akan berjalan menggunakan PHP-FPM.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
@@ -227,7 +304,13 @@ export default function Dashboard({ auth, projects }) {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 font-mono text-zinc-500 text-[11px] group-hover/row:text-zinc-400 transition-colors">
-                                                    {project.github_repo} <span className="text-cyan-500/60 font-bold">#{project.branch}</span>
+                                                    {project.github_repo ? (
+                                                        <>
+                                                            {project.github_repo} <span className="text-cyan-500/60 font-bold">#{project.branch}</span>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-zinc-600 font-light">[ DIRECT_UPLOAD ]</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4 font-mono text-[11px]">
                                                     {project.status === 'pending' ? (

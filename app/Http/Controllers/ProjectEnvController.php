@@ -40,11 +40,23 @@ class ProjectEnvController extends Controller
 
             // 3. Eksekusi Artisan Terstruktur
             $commands = [
-                "php artisan optimize:clear",           // WAJIB: Hapus cache agar .env baru terbaca
+                // 1. Unduh library
+                "composer install --no-interaction --prefer-dist --optimize-autoloader", 
+                
+                // 2. HANYA bersihkan cache konfigurasi (Aman, tidak menyentuh database)
+                "php artisan config:clear",           
+                
+                // 3. Buat kunci aplikasi
                 "php artisan key:generate --force",
-                "php artisan migrate --force ",  
+                
+                // 4. Eksekusi pembuatan tabel database (termasuk tabel cache)
+                "php artisan migrate --force",   
+                
+                // 5. Hubungkan folder publik
                 "php artisan storage:link",
-                "php artisan optimize:clear"            // Cache ulang untuk kecepatan produksi
+                
+                // 6. Sekarang aman menjalankan optimize:clear penuh karena tabel sudah ada
+                "php artisan optimize:clear"            
             ];
 
             foreach ($commands as $cmd) {

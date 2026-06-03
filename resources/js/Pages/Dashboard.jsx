@@ -7,6 +7,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import Modal from '@/Components/Modal';
 import SecondaryButton from '@/Components/SecondaryButton';
+import axios from 'axios';
 
 // Komponen Loading Spinner
 const Spinner = () => (
@@ -35,6 +36,18 @@ export default function Dashboard({ auth, projects }) {
     const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
     const [selectedProject, setSelectedProject] = useState(null);
     const envForm = useForm({ env_text: '' });
+
+    // Modals Re-upload & Editor
+    const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+    const [isEditorModalOpen, setIsEditorModalOpen] = useState(false);
+    const [editorContent, setEditorContent] = useState('');
+    const [editorFilename, setEditorFilename] = useState('');
+    const [isSavingCode, setIsSavingCode] = useState(false);
+    const [isLoadingCode, setIsLoadingCode] = useState(false);
+
+    const updateForm = useForm({
+        uploaded_file: null,
+    });
 
     // --- REALTIME POLLING: Cek otomatis tanpa refresh ---
     const isDeploying = projects?.some(project => project.status.toLowerCase() === 'pending');
@@ -106,6 +119,71 @@ export default function Dashboard({ auth, projects }) {
             }
         });
     };    
+
+    const openUpdateModal = (project) => {
+        setSelectedProject(project);
+        updateForm.setData('uploaded_file', null);
+        updateForm.clearErrors();
+        setIsUpdateModalOpen(true);
+    };
+
+    const submitUpdate = (e) => {
+        e.preventDefault();
+        updateForm.post(route('projects.update-files', selectedProject.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsUpdateModalOpen(false);
+                updateForm.reset();
+            }
+        });
+    };
+
+    const openEditorModal = async (project) => {
+        setSelectedProject(project);
+        setIsEditorModalOpen(true);
+        setIsLoadingCode(true);
+        setEditorContent('');
+        setEditorFilename('');
+
+        try {
+            const response = await axios.get(route('projects.read-file', project.id));
+            setEditorContent(response.data.content);
+            setEditorFilename(response.data.filename);
+        } catch (error) {
+            alert('Gagal membaca berkas: ' + (error.response?.data?.error || error.message));
+            setIsEditorModalOpen(false);
+        } finally {
+            setIsLoadingCode(false);
+        }
+    };
+
+    const saveCode = async () => {
+        setIsSavingCode(true);
+        try {
+            const response = await axios.post(route('projects.save-file', selectedProject.id), {
+                filename: editorFilename,
+                content: editorContent
+            });
+            if (response.data.success) {
+                setIsEditorModalOpen(false);
+                alert('Kode berhasil disimpan secara langsung!');
+            } else {
+                alert('Gagal menyimpan: ' + response.data.message);
+            }
+        } catch (error) {
+            alert('Gagal menyimpan kode: ' + (error.response?.data?.message || error.message));
+        } finally {
+            setIsSavingCode(false);
+        }
+    };
+
+    const handleEditorScroll = (e) => {
+        const textarea = e.target;
+        const lineNumbersDiv = document.getElementById('editor-line-numbers');
+        if (lineNumbersDiv) {
+            lineNumbersDiv.scrollTop = textarea.scrollTop;
+        }
+    };
 
     return (
         <AuthenticatedLayout
@@ -342,6 +420,24 @@ export default function Dashboard({ auth, projects }) {
                                                                 ⚙️ Config .env
                                                             </button>
                                                         )}
+                                                        {!project.github_repo && project.status.toLowerCase() === 'active' && (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => openUpdateModal(project)}
+                                                                    className="text-[10px] uppercase tracking-wider text-yellow-400 hover:text-yellow-300 font-bold border border-yellow-500/20 hover:border-yellow-500 bg-yellow-500/5 hover:bg-yellow-500/10 px-3 py-1.5 transition-all active:scale-95"
+                                                                >
+                                                                    📁 Update
+                                                                </button>
+                                                                {project.project_type !== 'nodejs' && (
+                                                                    <button
+                                                                        onClick={() => openEditorModal(project)}
+                                                                        className="text-[10px] uppercase tracking-wider text-green-400 hover:text-green-300 font-bold border border-green-500/20 hover:border-green-500 bg-green-500/5 hover:bg-green-500/10 px-3 py-1.5 transition-all active:scale-95"
+                                                                    >
+                                                                        📝 Edit Code
+                                                                    </button>
+                                                                )}
+                                                            </>
+                                                        )}
                                                         <button
                                                             onClick={() => deleteProject(project.id)}
                                                             className="text-[10px] uppercase tracking-wider text-red-400 hover:text-red-300 font-bold border border-red-500/20 hover:border-red-500 bg-red-500/5 hover:bg-red-500/10 px-3 py-1.5 transition-all active:scale-95"
@@ -422,6 +518,113 @@ export default function Dashboard({ auth, projects }) {
                             </PrimaryButton>
                         </div>
                     </form>
+                </div>
+            </Modal>
+
+            {/* --- MODAL UPDATE FILES (RE-UPLOAD) --- */}
+            <Modal show={isUpdateModalOpen} onClose={() => { setIsUpdateModalOpen(false); updateForm.clearErrors(); }}>
+                <div className="p-6 bg-zinc-950 border border-zinc-800">
+                    <header className="mb-4">
+                        <span className="text-[9px] tracking-[0.3em] uppercase text-yellow-400 font-medium">04. Update Project Files</span>
+                        <h2 className="text-xl font-light tracking-tight text-white uppercase mt-1">
+                            Perbarui File ({selectedProject?.name})
+                        </h2>
+                        <p className="mt-1 text-xs text-zinc-500 font-light">Unggah berkas baru (.zip, .html, .php) untuk menimpa file lama.</p>
+                    </header>
+
+                    <form onSubmit={submitUpdate}>
+                        <div className="mt-4">
+                            <div className="relative border border-dashed border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 p-8 flex flex-col items-center justify-center cursor-pointer transition-colors group">
+                                <input
+                                    type="file"
+                                    accept=".zip,.html,.php"
+                                    onChange={(e) => updateForm.setData('uploaded_file', e.target.files[0])}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                    required
+                                />
+                                <div className="text-center space-y-2">
+                                    <div className="text-zinc-400 group-hover:text-yellow-400 transition-colors text-lg">
+                                        {updateForm.data.uploaded_file ? '📄' : '📤'}
+                                    </div>
+                                    <div className="text-xs font-mono text-zinc-400 group-hover:text-zinc-300 transition-colors">
+                                        {updateForm.data.uploaded_file ? updateForm.data.uploaded_file.name : 'Pilih berkas baru atau seret kemari'}
+                                    </div>
+                                    <div className="text-[10px] text-zinc-600 font-mono">
+                                        {updateForm.data.uploaded_file ? `${(updateForm.data.uploaded_file.size / 1024 / 1024).toFixed(2)} MB` : 'Mendukung .zip, .html, atau .php'}
+                                    </div>
+                                </div>
+                            </div>
+                            <InputError className="mt-2 text-xs text-red-400" message={updateForm.errors.uploaded_file} />
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-3">
+                            <SecondaryButton onClick={() => { setIsUpdateModalOpen(false); updateForm.clearErrors(); }}>Batal</SecondaryButton>
+                            <PrimaryButton disabled={updateForm.processing} className="bg-yellow-600 hover:bg-yellow-500 text-black font-bold uppercase tracking-wider text-[10px]">
+                                {updateForm.processing ? <><Spinner /> Memproses...</> : 'Unggah & Deploy Ulang'}
+                            </PrimaryButton>
+                        </div>
+                    </form>
+                </div>
+            </Modal>
+
+            {/* --- MODAL CLOUD CODE EDITOR --- */}
+            <Modal show={isEditorModalOpen} onClose={() => setIsEditorModalOpen(false)} maxWidth="4xl">
+                <div className="p-6 bg-zinc-950 border border-zinc-800 text-white relative overflow-hidden">
+                    <header className="mb-4 flex justify-between items-center">
+                        <div>
+                            <span className="text-[9px] tracking-[0.3em] uppercase text-green-400 font-medium">05. Cloud Code Editor</span>
+                            <h2 className="text-xl font-light tracking-tight text-white uppercase mt-1">
+                                Edit: <span className="text-green-400 font-mono font-bold text-sm lowercase">{editorFilename}</span>
+                            </h2>
+                        </div>
+                        <div className="text-[10px] text-zinc-500 font-mono">
+                            {selectedProject?.name}
+                        </div>
+                    </header>
+
+                    {isLoadingCode ? (
+                        <div className="h-[400px] flex items-center justify-center border border-zinc-900 bg-zinc-950 text-zinc-500 font-mono text-xs">
+                            <Spinner /> Membaca berkas dari server...
+                        </div>
+                    ) : (
+                        <div className="border border-zinc-800 flex bg-zinc-950 overflow-hidden rounded-md shadow-2xl relative">
+                            {/* Line Numbers */}
+                            <div 
+                                id="editor-line-numbers" 
+                                className="w-10 bg-zinc-900 border-r border-zinc-800 text-right pr-2.5 py-4 select-none overflow-hidden text-[10px] font-mono text-zinc-600 leading-5"
+                            >
+                                {Array.from({ length: editorContent.split('\n').length }, (_, i) => i + 1).map(line => (
+                                    <div key={line} className="h-5">{line}</div>
+                                ))}
+                            </div>
+
+                            {/* Text Area Code Editor */}
+                            <textarea
+                                value={editorContent}
+                                onChange={(e) => setEditorContent(e.target.value)}
+                                onScroll={handleEditorScroll}
+                                className="flex-1 bg-zinc-950 text-green-400 font-mono text-[10px] py-4 px-3.5 focus:outline-none focus:ring-0 border-0 resize-none leading-5 h-[350px] md:h-[450px] overflow-y-auto"
+                                placeholder="// Mulai ketik kode di sini..."
+                                spellCheck="false"
+                            />
+                        </div>
+                    )}
+
+                    <div className="mt-6 flex justify-between items-center">
+                        <div className="text-[10px] text-zinc-500 font-mono">
+                            Menyimpan langsung ke root aplikasi
+                        </div>
+                        <div className="flex gap-3">
+                            <SecondaryButton onClick={() => setIsEditorModalOpen(false)}>Batal</SecondaryButton>
+                            <PrimaryButton 
+                                onClick={saveCode} 
+                                disabled={isSavingCode || isLoadingCode} 
+                                className="bg-green-600 hover:bg-green-500 text-black font-bold uppercase tracking-wider text-[10px]"
+                            >
+                                {isSavingCode ? <><Spinner /> Menyimpan...</> : 'Simpan Kode'}
+                            </PrimaryButton>
+                        </div>
+                    </div>
                 </div>
             </Modal>
         </AuthenticatedLayout>

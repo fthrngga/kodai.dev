@@ -245,4 +245,213 @@ class ProjectController extends Controller
         }
     }
 
+    public function updateFiles(Request $request, Project $project)
+    {
+        if (auth()->id() !== $project->user_id) {
+            abort(403, 'Akses ditolak.');
+        }
+
+        $request->validate([
+            'uploaded_file' => 'required|file|mimes:zip,html,php|max:51200',
+        ], [
+            'uploaded_file.mimes' => 'Format file harus berupa .zip, .html, atau .php.',
+            'uploaded_file.max' => 'Ukuran berkas tidak boleh melebihi 50 MB.',
+        ]);
+
+        $projectDir = '/home/fathurrangga92/kodaidev-apps/' . $project->subdomain;
+        $domain = $project->custom_domain ?: $project->subdomain . '.kodaidev.my.id';
+
+        try {
+            // Bersihkan direktori proyek lama
+            if (\Illuminate\Support\Facades\File::exists($projectDir)) {
+                \Illuminate\Support\Facades\File::cleanDirectory($projectDir);
+            } else {
+                \Illuminate\Support\Facades\File::makeDirectory($projectDir, 0755, true);
+            }
+
+            $fileToStore = $request->file('uploaded_file');
+            $extension = strtolower($fileToStore->getClientOriginalExtension());
+
+            if ($extension === 'zip') {
+                $zipPath = $fileToStore->storeAs('temp', $project->subdomain . '.zip');
+                $fullZipPath = storage_path('app/' . $zipPath);
+
+                $zip = new \ZipArchive;
+                if ($zip->open($fullZipPath) === TRUE) {
+                    $zip->extractTo($projectDir);
+                    $zip->close();
+                } else {
+                    \Illuminate\Support\Facades\Process::run("unzip -o {$fullZipPath} -d {$projectDir}");
+                }
+                @unlink($fullZipPath);
+            } else {
+                $filename = 'index.' . $extension;
+                $fileToStore->move($projectDir, $filename);
+            }
+
+            // Deteksi otomatis jika terdapat berkas PHP baru
+            $hasPhp = false;
+            if (\Illuminate\Support\Facades\File::exists($projectDir . '/index.php')) {
+                $hasPhp = true;
+            } else {
+                $files = \Illuminate\Support\Facades\File::files($projectDir);
+                foreach ($files as $f) {
+                    if (strtolower($f->getExtension()) === 'php') {
+                        $hasPhp = true;
+                        break;
+                    }
+                }
+            }
+
+            // Sesuaikan project type
+            if ($hasPhp) {
+                $project->project_type = 'laravel'; // mengaktifkan PHP-FPM
+            } else {
+                if ($project->project_type !== 'spa') {
+                    $project->project_type = 'static';
+                }
+            }
+            $project->save();
+
+            // Buat log deployment update
+            $project->deployments()->create([
+                'status' => 'success',
+                'log_output' => "Berkas proyek berhasil diperbarui!\n"
+                    . "File terunggah & terekstrak di: {$projectDir}\n"
+                    . "Deteksi PHP: " . ($hasPhp ? "Aktif (Mengaktifkan PHP-FPM Nginx)" : "Nonaktif (Nginx Static Mode)")
+            ]);
+
+            // Tulis Nginx
+            $nginxAvailable = "/etc/nginx/sites-available/{$domain}";
+            $nginxConfig = "";
+
+            if ($project->project_type === 'laravel') {
+                $rootPath = $projectDir;
+                if (\Illuminate\Support\Facades\File::exists($projectDir . '/public')) {
+                    $rootPath = $projectDir . '/public';
+                }
+                $nginxConfig = "server {\n"
+                    . "    listen 80;\n"
+                    . "    server_name {$domain};\n"
+                    . "    root {$rootPath};\n"
+                    . "    index index.php index.html index.htm;\n"
+                    . "    charset utf-8;\n\n"
+                    . "    location / {\n"
+                    . "        try_files \$uri \$uri/ /index.php?\$query_string;\n"
+                    . "    }\n\n"
+                    . "    location ~ \.php$ {\n"
+                    . "        include snippets/fastcgi-php.conf;\n"
+                    . "        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;\n"
+                    . "    }\n"
+                    . "}\n";
+            } else {
+                $fallback = $project->project_type === 'spa' ? '/index.html' : '=404';
+                $nginxConfig = "server {\n"
+                    . "    listen 80;\n"
+                    . "    server_name {$domain};\n"
+                    . "    root {$projectDir};\n"
+                    . "    index index.html index.htm;\n\n"
+                    . "    location / {\n"
+                    . "        try_files \$uri \$uri/ {$fallback};\n"
+                    . "    }\n"
+                    . "}\n";
+            }
+
+            $tmpPath = storage_path("app/tmp_nginx_{$domain}");
+            \Illuminate\Support\Facades\File::put($tmpPath, $nginxConfig);
+            \Illuminate\Support\Facades\Process::run("sudo cp {$tmpPath} {$nginxAvailable}");
+            \Illuminate\Support\Facades\Process::run("sudo ln -sf {$nginxAvailable} /etc/nginx/sites-enabled/{$domain}");
+            \Illuminate\Support\Facades\Process::run("sudo systemctl reload nginx");
+            @unlink($tmpPath);
+
+            return back()->with('success', 'Berkas proyek berhasil diperbarui secara instan!');
+        } catch (\Exception $e) {
+            return back()->withErrors(['uploaded_file' => 'Gagal memperbarui berkas: ' . $e->getMessage()]);
+        }
+    }
+
+    public function readFile(Project $project)
+    {
+        if (auth()->id() !== $project->user_id) {
+            return response()->json(['error' => 'Akses ditolak.'], 403);
+        }
+
+        $projectDir = '/home/fathurrangga92/kodaidev-apps/' . $project->subdomain;
+        
+        $targetFile = null;
+        $filename = '';
+
+        if (\Illuminate\Support\Facades\File::exists($projectDir . '/index.php')) {
+            $targetFile = $projectDir . '/index.php';
+            $filename = 'index.php';
+        } elseif (\Illuminate\Support\Facades\File::exists($projectDir . '/index.html')) {
+            $targetFile = $projectDir . '/index.html';
+            $filename = 'index.html';
+        } else {
+            // Cari file PHP atau HTML pertama di root
+            $files = \Illuminate\Support\Facades\File::files($projectDir);
+            foreach ($files as $f) {
+                if (in_array(strtolower($f->getExtension()), ['html', 'php', 'htm', 'js', 'css'])) {
+                    $targetFile = $f->getRealPath();
+                    $filename = $f->getFilename();
+                    break;
+                }
+            }
+        }
+
+        if (!$targetFile || !\Illuminate\Support\Facades\File::exists($targetFile)) {
+            // Jika kosong/tidak ada file yang dapat diedit, buat index.html kosong baru
+            $targetFile = $projectDir . '/index.html';
+            $filename = 'index.html';
+            \Illuminate\Support\Facades\File::put($targetFile, "<!-- Mulai coding disini! -->\n<h1>Halo Dunia!</h1>");
+        }
+
+        $content = \Illuminate\Support\Facades\File::get($targetFile);
+
+        return response()->json([
+            'filename' => $filename,
+            'content' => $content,
+        ]);
+    }
+
+    public function saveFile(Request $request, Project $project)
+    {
+        if (auth()->id() !== $project->user_id) {
+            return response()->json(['error' => 'Akses ditolak.'], 403);
+        }
+
+        $request->validate([
+            'filename' => 'required|string',
+            'content' => 'required|string',
+        ]);
+
+        $projectDir = '/home/fathurrangga92/kodaidev-apps/' . $project->subdomain;
+        $filePath = $projectDir . '/' . basename($request->filename);
+
+        try {
+            // Pastikan direktori ada
+            if (!\Illuminate\Support\Facades\File::exists($projectDir)) {
+                \Illuminate\Support\Facades\File::makeDirectory($projectDir, 0755, true);
+            }
+
+            \Illuminate\Support\Facades\File::put($filePath, $request->content);
+
+            // Log update dari Cloud Editor
+            $project->deployments()->create([
+                'status' => 'success',
+                'log_output' => "Berkas {$request->filename} berhasil diperbarui langsung via Cloud Code Editor."
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Berkas berhasil disimpan!',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menyimpan berkas: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
 }

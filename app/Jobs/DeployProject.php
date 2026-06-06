@@ -27,9 +27,11 @@ class DeployProject implements ShouldQueue
         // Env vars yang dioper langsung ke setiap subprocess
         // (putenv() TIDAK diwarisi oleh subprocess Process::run)
         $env = [
-            'HOME'          => '/home/fathurrangga92',
-            'COMPOSER_HOME' => '/home/fathurrangga92/.composer',
-            'PATH'          => '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/node/bin',
+            'HOME'              => '/home/fathurrangga92',
+            'COMPOSER_HOME'     => '/home/fathurrangga92/.composer',
+            'PATH'              => '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/node/bin',
+            'KODAIDEV_BUILD'    => 'true',   // Sinyal ke vite.config agar disable plugin yg butuh DB (mis: wayfinder)
+            'CI'                => 'true',   // Flag standar CI/CD - beberapa plugin juga respek ini
         ];
 
         $this->project->update(['status' => 'building']);

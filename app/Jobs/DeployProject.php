@@ -56,6 +56,14 @@ class DeployProject implements ShouldQueue
                 throw new \Exception("Gagal mengunduh repositori: " . $clone->errorOutput());
             }
 
+            // Ambil commit hash terbaru dari repositori yang dikloning
+            $revParse = Process::path($projectDir)->run("git rev-parse HEAD");
+            if ($revParse->successful()) {
+                $commitHash = trim($revParse->output());
+                $deployment->update(['commit_hash' => $commitHash]);
+                $this->appendLog($deployment, "Berhasil mengunduh commit hash: {$commitHash}\n");
+            }
+
             $this->appendLog($deployment, "Menganalisis arsitektur proyek...\n");
 
             // 1. Eksekusi dependensi dan build sesuai tipe proyek

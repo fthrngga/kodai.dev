@@ -43,5 +43,7 @@ Route::post('/projects/{project}/env', [ProjectEnvController::class, 'store'])->
 Route::post('/projects/{project}/update-files', [ProjectController::class, 'updateFiles'])->middleware('auth')->name('projects.update-files');
 Route::get('/projects/{project}/read-file', [ProjectController::class, 'readFile'])->middleware('auth')->name('projects.read-file');
 Route::post('/projects/{project}/save-file', [ProjectController::class, 'saveFile'])->middleware('auth')->name('projects.save-file');
+Route::get('/projects/{project}/check-update', [ProjectController::class, 'checkUpdate'])->middleware('auth')->name('projects.check-update');
+Route::post('/projects/{project}/redeploy', [ProjectController::class, 'redeploy'])->middleware('auth')->name('projects.redeploy');
 
 require __DIR__.'/auth.php';

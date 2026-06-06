@@ -63,6 +63,35 @@ export default function Dashboard({ auth, projects, serverIp = '122.251.27.185' 
         return () => clearInterval(interval);
     }, [isDeploying]);
 
+    // --- DETEKSI UPDATE & REDEPLOY MANUAL ---
+    const [updates, setUpdates] = useState({});
+
+    useEffect(() => {
+        if (!projects || projects.length === 0) return;
+
+        const githubProjects = projects.filter(p => p.github_repo && p.status.toLowerCase() === 'active');
+        
+        githubProjects.forEach(async (project) => {
+            try {
+                const response = await axios.get(route('projects.check-update', project.id));
+                setUpdates(prev => ({
+                    ...prev,
+                    [project.id]: response.data
+                }));
+            } catch (err) {
+                console.error("Gagal mengecek update untuk " + project.name, err);
+            }
+        });
+    }, [projects]);
+
+    const handleRedeploy = (projectId) => {
+        if (confirm('Apakah Anda yakin ingin mendeploy ulang proyek ini dari GitHub?')) {
+            router.post(route('projects.redeploy', projectId), {}, {
+                preserveScroll: true
+            });
+        }
+    };
+
     // Buka Modal Password
     const openPasswordModal = (e) => {
         e.preventDefault();
@@ -397,9 +426,29 @@ export default function Dashboard({ auth, projects, serverIp = '122.251.27.185' 
                                                 </td>
                                                 <td className="px-6 py-4 font-mono text-zinc-500 text-[11px] group-hover/row:text-zinc-400 transition-colors">
                                                     {project.github_repo ? (
-                                                        <>
-                                                            {project.github_repo} <span className="text-cyan-500/60 font-bold">#{project.branch}</span>
-                                                        </>
+                                                        <div className="space-y-1">
+                                                            <div>
+                                                                {project.github_repo} <span className="text-cyan-500/60 font-bold">#{project.branch}</span>
+                                                            </div>
+                                                            {updates[project.id] && (
+                                                                <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                                    {updates[project.id].has_update ? (
+                                                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                                                                            ⚠️ Update Tersedia
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-green-500/10 text-green-450 border border-green-500/20">
+                                                                            ✓ Up to date
+                                                                        </span>
+                                                                    )}
+                                                                    {(updates[project.id].current_commit || updates[project.id].latest_commit) && (
+                                                                        <span className="text-[9px] text-zinc-650">
+                                                                            ({updates[project.id].current_commit || 'none'} → {updates[project.id].latest_commit})
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     ) : (
                                                         <span className="text-zinc-600 font-light">[ DIRECT_UPLOAD ]</span>
                                                     )}
@@ -426,6 +475,14 @@ export default function Dashboard({ auth, projects, serverIp = '122.251.27.185' 
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="inline-flex gap-2">
+                                                        {project.github_repo && project.status.toLowerCase() === 'active' && updates[project.id]?.has_update && (
+                                                            <button
+                                                                onClick={() => handleRedeploy(project.id)}
+                                                                className="text-[10px] uppercase tracking-wider text-yellow-400 hover:text-yellow-300 font-bold border border-yellow-500/20 hover:border-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20 px-3 py-1.5 transition-all active:scale-95 animate-pulse"
+                                                            >
+                                                                🚀 Redeploy
+                                                            </button>
+                                                        )}
                                                         {project.status.toLowerCase() === 'active' && (
                                                             <button
                                                                 onClick={() => openEnvModal(project)}

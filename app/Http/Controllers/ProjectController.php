@@ -479,4 +479,76 @@ class ProjectController extends Controller
         }
     }
 
+    public function checkUpdate(Project $project)
+    {
+        if (auth()->id() !== $project->user_id) {
+            return response()->json(['error' => 'Akses ditolak.'], 403);
+        }
+
+        // Jika bukan project GitHub (misal direct upload), tidak bisa cek update
+        if (empty($project->github_repo)) {
+            return response()->json(['has_update' => false]);
+        }
+
+        $token = $project->user->github_token;
+        if (empty($token)) {
+            return response()->json(['error' => 'Token GitHub tidak ditemukan. Silakan login kembali dengan GitHub.'], 400);
+        }
+
+        try {
+            // Panggil API GitHub untuk mengambil commit SHA terbaru pada branch bersangkutan
+            $response = \Illuminate\Support\Facades\Http::withToken($token)
+                ->withHeaders(['User-Agent' => 'Kodaidev-App'])
+                ->get("https://api.github.com/repos/{$project->github_repo}/commits/{$project->branch}");
+
+            if ($response->failed()) {
+                return response()->json([
+                    'error' => 'Gagal menghubungi API GitHub: ' . ($response->json('message') ?: $response->body())
+                ], $response->status());
+            }
+
+            $latestCommitSha = $response->json('sha');
+
+            // Ambil commit hash dari deployment terakhir yang sukses
+            $lastSuccessDeployment = $project->deployments()
+                ->where('status', 'success')
+                ->whereNotNull('commit_hash')
+                ->latest()
+                ->first();
+
+            $currentCommitSha = $lastSuccessDeployment ? $lastSuccessDeployment->commit_hash : null;
+
+            // Ada update jika commit hash terbaru di GitHub berbeda dengan commit hash aktif di server
+            $hasUpdate = ($latestCommitSha !== $currentCommitSha);
+
+            return response()->json([
+                'has_update' => $hasUpdate,
+                'latest_commit' => $latestCommitSha ? substr($latestCommitSha, 0, 7) : null,
+                'current_commit' => $currentCommitSha ? substr($currentCommitSha, 0, 7) : null,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function redeploy(Project $project)
+    {
+        if (auth()->id() !== $project->user_id) {
+            abort(403, 'Akses ditolak.');
+        }
+
+        // Cek jika proyek sedang memproses pembangunan
+        if ($project->status === 'pending' || $project->status === 'building') {
+            return back()->withErrors(['redeploy' => 'Proyek sedang dalam proses pembangunan/antrean saat ini.']);
+        }
+
+        // Ubah status proyek kembali menjadi pending agar spinner berjalan di UI
+        $project->update(['status' => 'pending']);
+
+        // Dispatch Queue Job untuk mendeploy ulang
+        DeployProject::dispatch($project);
+
+        return back()->with('success', 'Perintah redeploy berhasil dikirim. Sistem sedang memperbarui berkas di latar belakang!');
+    }
 }

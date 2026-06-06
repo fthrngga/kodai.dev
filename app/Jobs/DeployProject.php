@@ -145,6 +145,7 @@ class DeployProject implements ShouldQueue
             // ==========================================
             $this->project->configureNginxAndSsl($deployment);
 
+            $domain = $this->project->custom_domain ?: $this->project->subdomain . '.kodaidev.my.id';
             $this->project->update(['status' => 'active']);
             $deployment->update([
                 'status' => 'success',

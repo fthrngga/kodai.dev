@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm, router } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -92,6 +92,13 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
         isDanger: false
     });
 
+    // Toast notification state
+    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+    const showToast = (message, type = 'success') => {
+        setToast({ show: true, message, type });
+        setTimeout(() => setToast(t => ({ ...t, show: false })), 5000);
+    };
+
     // Modals Edit Domain States
     const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
     const domainForm = useForm({
@@ -124,17 +131,26 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
     };
 
     // --- REALTIME POLLING: Cek otomatis tanpa refresh ---
-    const isDeploying = projects?.some(project => project.status.toLowerCase() === 'pending');
+    // Deteksi pending DAN building agar polling terus berjalan sepanjang proses deploy
+    const isDeploying = projects?.some(project => ['pending', 'building'].includes(project.status.toLowerCase()));
+    const wasDeployingRef = useRef(false);
 
     useEffect(() => {
         let interval;
         if (isDeploying) {
-            // Ping server tiap 3 detik hanya di balik layar
             interval = setInterval(() => {
                 router.reload({ only: ['projects'], preserveScroll: true, preserveState: true });
             }, 3000);
         }
         return () => clearInterval(interval);
+    }, [isDeploying]);
+
+    // Reload sekali lagi saat deployment baru saja selesai agar tombol aksi muncul
+    useEffect(() => {
+        if (wasDeployingRef.current && !isDeploying) {
+            router.reload({ only: ['projects'], preserveScroll: true, preserveState: true });
+        }
+        wasDeployingRef.current = isDeploying;
     }, [isDeploying]);
 
     // --- REALTIME LOG POLLING ---
@@ -249,7 +265,7 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
         envForm.post(route('projects.env.store', selectedProject.id), {
             onSuccess: () => {
                 setIsEnvModalOpen(false);
-                // Alert bawaan dihapus, diganti oleh Sonner di Layout!
+                showToast('Sistem otomatisasi sukses! Composer, NPM, Database, Migrasi, dan SSL terpasang sempurna.', 'success');
             }
         });
     };    
@@ -683,6 +699,47 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
                     </div>
                 </div>
             </div>
+
+            {/* --- TOAST NOTIFICATION --- */}
+            {toast.show && (
+                <div className={`fixed bottom-6 right-6 z-[9999] max-w-sm w-full transition-all duration-500 ${toast.show ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
+                    <div className={`relative overflow-hidden border px-5 py-4 shadow-2xl backdrop-blur-xl ${
+                        toast.type === 'success'
+                            ? 'bg-zinc-950/95 border-cyan-500/30'
+                            : 'bg-zinc-950/95 border-red-500/30'
+                    }`}>
+                        {/* Animated top border */}
+                        <div className={`absolute top-0 left-0 w-full h-0.5 ${
+                            toast.type === 'success'
+                                ? 'bg-gradient-to-r from-transparent via-cyan-400 to-transparent'
+                                : 'bg-gradient-to-r from-transparent via-red-400 to-transparent'
+                        }`} />
+                        <div className="flex items-start gap-3">
+                            <span className="text-lg mt-0.5 flex-shrink-0">
+                                {toast.type === 'success' ? '✅' : '❌'}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                                <p className={`text-xs font-mono font-bold uppercase tracking-wider mb-1 ${
+                                    toast.type === 'success' ? 'text-cyan-400' : 'text-red-400'
+                                }`}>
+                                    {toast.type === 'success' ? 'Operasi Berhasil' : 'Terjadi Kesalahan'}
+                                </p>
+                                <p className="text-xs text-zinc-300 leading-relaxed">{toast.message}</p>
+                            </div>
+                            <button
+                                onClick={() => setToast(t => ({ ...t, show: false }))}
+                                className="text-zinc-600 hover:text-zinc-300 transition-colors flex-shrink-0 ml-1 text-lg leading-none"
+                            >×</button>
+                        </div>
+                        {/* Auto-dismiss progress bar */}
+                        <div className="absolute bottom-0 left-0 h-px bg-zinc-800 w-full">
+                            <div className={`h-full animate-[shrink_5s_linear_forwards] ${
+                                toast.type === 'success' ? 'bg-cyan-500/60' : 'bg-red-500/60'
+                            }`} />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* --- MODAL PASSWORD MASTER --- */}
             <Modal show={isPasswordModalOpen} onClose={() => { setIsPasswordModalOpen(false); clearErrors(); }}>

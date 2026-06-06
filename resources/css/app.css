@@ -100,4 +100,8 @@
     75%  { content: '...'; }
     100% { content: ''; }
   }
+  @keyframes shrink {
+    from { width: 100%; }
+    to   { width: 0%; }
+  }
 }

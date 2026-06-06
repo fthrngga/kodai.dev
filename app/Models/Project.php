@@ -191,10 +191,51 @@ class Project extends Model
             $this->appendLog($deployment, "Memasang sertifikat SSL via Certbot untuk {$domain}...\n");
             $sslCmd = "sudo certbot --nginx -d {$domain} --non-interactive --agree-tos --register-unsafely-without-email";
             $processSsl = \Illuminate\Support\Facades\Process::run($sslCmd);
+
             if ($processSsl->failed()) {
                 $this->appendLog($deployment, "⚠️ Gagal memasang SSL Certbot: " . $processSsl->errorOutput() . "\n");
             } else {
-                $this->appendLog($deployment, "🔒 Sertifikat SSL Certbot terpasang aman.\n");
+                // Certbot --nginx bisa merusak try_files directive kita.
+                // Timpa ulang config Nginx dengan SSL config yang benar setelah sertifikat diperoleh.
+                $certBase = "/etc/letsencrypt/live/{$domain}";
+                $sslCert  = \Illuminate\Support\Facades\File::exists("{$certBase}-0001/fullchain.pem") ? "{$certBase}-0001/fullchain.pem" : "{$certBase}/fullchain.pem";
+                $sslKey   = \Illuminate\Support\Facades\File::exists("{$certBase}-0001/privkey.pem")  ? "{$certBase}-0001/privkey.pem"  : "{$certBase}/privkey.pem";
+
+                $sslNginxConfig = "";
+                if ($this->project_type === 'laravel') {
+                    $sslNginxConfig = "server {\n"
+                        . "    listen 80;\n    server_name {$domain};\n    return 301 https://\$host\$request_uri;\n}\n\n"
+                        . "server {\n    listen 443 ssl;\n    server_name {$domain};\n    root {$rootPath};\n"
+                        . "    index index.php index.html index.htm;\n    charset utf-8;\n\n"
+                        . "    ssl_certificate {$sslCert};\n    ssl_certificate_key {$sslKey};\n\n"
+                        . "    location / {\n        try_files \$uri \$uri/ /index.php?\$query_string;\n    }\n\n"
+                        . "    location ~ \\.php$ {\n        include snippets/fastcgi-php.conf;\n        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;\n    }\n}\n";
+                } elseif ($this->project_type === 'nodejs') {
+                    $port = $this->node_port ?: 3000;
+                    $sslNginxConfig = "server {\n"
+                        . "    listen 80;\n    server_name {$domain};\n    return 301 https://\$host\$request_uri;\n}\n\n"
+                        . "server {\n    listen 443 ssl;\n    server_name {$domain};\n\n"
+                        . "    ssl_certificate {$sslCert};\n    ssl_certificate_key {$sslKey};\n\n"
+                        . "    location / {\n        proxy_pass http://localhost:{$port};\n        proxy_http_version 1.1;\n"
+                        . "        proxy_set_header Upgrade \$http_upgrade;\n        proxy_set_header Connection 'upgrade';\n"
+                        . "        proxy_set_header Host \$host;\n        proxy_cache_bypass \$http_upgrade;\n    }\n}\n";
+                } else {
+                    $fallback = $this->project_type === 'spa' ? '/index.html' : '=404';
+                    $sslNginxConfig = "server {\n"
+                        . "    listen 80;\n    server_name {$domain};\n    return 301 https://\$host\$request_uri;\n}\n\n"
+                        . "server {\n    listen 443 ssl;\n    server_name {$domain};\n    root {$rootPath};\n    index index.html index.htm;\n\n"
+                        . "    ssl_certificate {$sslCert};\n    ssl_certificate_key {$sslKey};\n\n"
+                        . "    location / {\n        try_files \$uri \$uri/ {$fallback};\n    }\n}\n";
+                }
+
+                $tmpSslPath = storage_path("app/tmp_nginx_ssl_{$domain}");
+                \Illuminate\Support\Facades\File::put($tmpSslPath, $sslNginxConfig);
+                \Illuminate\Support\Facades\Process::run("sudo cp {$tmpSslPath} {$nginxAvailable}");
+                \Illuminate\Support\Facades\Process::run("sudo ln -sf {$nginxAvailable} {$nginxEnabled}");
+                \Illuminate\Support\Facades\Process::run("sudo systemctl reload nginx");
+                @unlink($tmpSslPath);
+
+                $this->appendLog($deployment, "🔒 SSL Certbot aktif — HTTPS dikonfigurasi dengan benar.\n");
             }
         } else {
             $this->appendLog($deployment, "🔒 SSL Wildcard aktif untuk subdomain ini (HTTPS otomatis).\n");

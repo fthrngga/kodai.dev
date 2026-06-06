@@ -20,7 +20,7 @@ Route::get('/', function () {
 Route::get('/dashboard', function () {
     $serverIp = gethostbyname('kodaidev.my.id');
     if ($serverIp === 'kodaidev.my.id') {
-        $serverIp = '122.251.27.185';
+        $serverIp = '34.50.74.177';
     }
     return Inertia::render('Dashboard', [
         'projects' => auth()->user()->projects()->latest()->get(),
@@ -45,5 +45,6 @@ Route::get('/projects/{project}/read-file', [ProjectController::class, 'readFile
 Route::post('/projects/{project}/save-file', [ProjectController::class, 'saveFile'])->middleware('auth')->name('projects.save-file');
 Route::get('/projects/{project}/check-update', [ProjectController::class, 'checkUpdate'])->middleware('auth')->name('projects.check-update');
 Route::post('/projects/{project}/redeploy', [ProjectController::class, 'redeploy'])->middleware('auth')->name('projects.redeploy');
+Route::post('/projects/{project}/update-domain', [ProjectController::class, 'updateDomain'])->middleware('auth')->name('projects.update-domain');
 
 require __DIR__.'/auth.php';

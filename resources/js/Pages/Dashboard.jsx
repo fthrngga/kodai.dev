@@ -17,7 +17,7 @@ const Spinner = () => (
     </svg>
 );
 
-export default function Dashboard({ auth, projects, serverIp = '122.251.27.185' }) {
+export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' }) {
     // --- State untuk Form Deploy Baru & Password Master ---
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         name: '',
@@ -207,6 +207,33 @@ export default function Dashboard({ auth, projects, serverIp = '122.251.27.185' 
             onSuccess: () => {
                 setIsUpdateModalOpen(false);
                 updateForm.reset();
+            }
+        });
+    };
+
+    // Modals Edit Domain
+    const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
+    const domainForm = useForm({
+        subdomain: '',
+        custom_domain: '',
+    });
+
+    const openDomainModal = (project) => {
+        setSelectedProject(project);
+        domainForm.setData({
+            subdomain: project.subdomain,
+            custom_domain: project.custom_domain || '',
+        });
+        domainForm.clearErrors();
+        setIsDomainModalOpen(true);
+    };
+
+    const submitDomain = (e) => {
+        e.preventDefault();
+        domainForm.post(route('projects.update-domain', selectedProject.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsDomainModalOpen(false);
             }
         });
     };
@@ -528,12 +555,20 @@ export default function Dashboard({ auth, projects, serverIp = '122.251.27.185' 
                                                             </button>
                                                         )}
                                                         {project.status.toLowerCase() === 'active' && (
-                                                            <button
-                                                                onClick={() => openEnvModal(project)}
-                                                                className="text-[10px] uppercase tracking-wider text-cyan-400 hover:text-cyan-300 font-bold border border-cyan-500/20 hover:border-cyan-500 bg-cyan-500/5 hover:bg-cyan-500/10 px-3 py-1.5 transition-all active:scale-95"
-                                                            >
-                                                                ⚙️ Config .env
-                                                            </button>
+                                                            <>
+                                                                <button
+                                                                    onClick={() => openEnvModal(project)}
+                                                                    className="text-[10px] uppercase tracking-wider text-cyan-400 hover:text-cyan-300 font-bold border border-cyan-500/20 hover:border-cyan-500 bg-cyan-500/5 hover:bg-cyan-500/10 px-3 py-1.5 transition-all active:scale-95"
+                                                                >
+                                                                    ⚙️ Config .env
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => openDomainModal(project)}
+                                                                    className="text-[10px] uppercase tracking-wider text-purple-400 hover:text-purple-300 font-bold border border-purple-500/20 hover:border-purple-500 bg-purple-500/5 hover:bg-purple-500/10 px-3 py-1.5 transition-all active:scale-95"
+                                                                >
+                                                                    🔗 Edit Domain
+                                                                </button>
+                                                            </>
                                                         )}
                                                         {!project.github_repo && project.status.toLowerCase() === 'active' && (
                                                             <>
@@ -676,6 +711,76 @@ export default function Dashboard({ auth, projects, serverIp = '122.251.27.185' 
                             <SecondaryButton onClick={() => { setIsUpdateModalOpen(false); updateForm.clearErrors(); }}>Batal</SecondaryButton>
                             <PrimaryButton disabled={updateForm.processing} className="bg-yellow-600 hover:bg-yellow-500 text-black font-bold uppercase tracking-wider text-[10px]">
                                 {updateForm.processing ? <><Spinner /> Memproses...</> : 'Unggah & Deploy Ulang'}
+                            </PrimaryButton>
+                        </div>
+                    </form>
+                </div>
+            </Modal>
+
+            {/* --- MODAL EDIT DOMAIN --- */}
+            <Modal show={isDomainModalOpen} onClose={() => { setIsDomainModalOpen(false); domainForm.clearErrors(); }}>
+                <div className="p-6 bg-zinc-950 border border-zinc-800 text-white relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500" />
+                    <header className="mb-4">
+                        <span className="text-[9px] tracking-[0.3em] uppercase text-purple-400 font-medium font-mono">06. Domain Settings</span>
+                        <h2 className="text-xl font-light tracking-tight text-white uppercase mt-1">
+                            Ubah Domain ({selectedProject?.name})
+                        </h2>
+                        <p className="mt-1 text-xs text-zinc-500 font-light">
+                            Ubah subdomain dasar atau tambahkan domain kustom eksternal untuk proyek ini.
+                        </p>
+                    </header>
+
+                    <form onSubmit={submitDomain} className="space-y-6 mt-6">
+                        <div>
+                            <InputLabel htmlFor="edit_subdomain" value="Subdomain Dasar" />
+                            <div className="flex mt-1">
+                                <TextInput
+                                    id="edit_subdomain"
+                                    type="text"
+                                    value={domainForm.data.subdomain}
+                                    onChange={(e) => domainForm.setData('subdomain', e.target.value)}
+                                    className="block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white focus:border-purple-500 focus:ring-purple-500/50"
+                                    required
+                                />
+                                <span className="inline-flex items-center px-4 bg-zinc-900 border border-l-0 border-zinc-800 text-zinc-500 font-mono text-xs select-none">
+                                    .kodaidev.my.id
+                                </span>
+                            </div>
+                            <InputError className="mt-2 text-xs text-red-400" message={domainForm.errors.subdomain} />
+                        </div>
+
+                        <div>
+                            <InputLabel htmlFor="edit_custom_domain" value="Domain Kustom (Opsional)" />
+                            <TextInput
+                                id="edit_custom_domain"
+                                type="text"
+                                value={domainForm.data.custom_domain}
+                                onChange={(e) => domainForm.setData('custom_domain', e.target.value)}
+                                className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white focus:border-purple-500 focus:ring-purple-500/50"
+                                placeholder="domainku.com"
+                            />
+                            <InputError className="mt-2 text-xs text-red-400" message={domainForm.errors.custom_domain} />
+                            
+                            {domainForm.data.custom_domain && (
+                                <div className="mt-2 p-3 bg-zinc-950 border border-zinc-800 rounded text-[10px] font-mono text-zinc-400 leading-relaxed space-y-1">
+                                    <div className="text-purple-400 font-bold uppercase tracking-wider text-[9px] mb-1">📍 Panduan Konfigurasi DNS:</div>
+                                    <div>Harap arahkan domain Anda di Registrar DNS Anda sebelum menyimpan:</div>
+                                    <ul className="list-disc pl-4 text-zinc-500 space-y-0.5 mt-1">
+                                        <li>Tipe: <span className="text-zinc-300">A Record</span> | Host: <span className="text-zinc-300">@</span> (atau subdomain) | IP Target: <span className="text-purple-400 font-bold">{serverIp}</span></li>
+                                        <li>Atau CNAME Record ke: <span className="text-zinc-300">kodaidev.my.id</span></li>
+                                    </ul>
+                                    <div className="text-[9px] text-zinc-500 mt-1 italic">
+                                        * DNS harus sudah mengarah sepenuhnya ke IP VPS Kodai Dev agar sertifikat SSL (HTTPS) dapat diterbitkan secara sukses.
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-3">
+                            <SecondaryButton onClick={() => { setIsDomainModalOpen(false); domainForm.clearErrors(); }}>Batal</SecondaryButton>
+                            <PrimaryButton disabled={domainForm.processing} className="bg-purple-600 hover:bg-purple-500 font-bold uppercase tracking-wider text-[10px]">
+                                {domainForm.processing ? <><Spinner /> Memproses...</> : 'Simpan Perubahan'}
                             </PrimaryButton>
                         </div>
                     </form>

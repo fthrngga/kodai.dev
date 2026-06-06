@@ -119,75 +119,8 @@ class ProjectEnvController extends Controller
                 }
             }
 
-            // 4. SELF-HEALING NGINX: Buat server block jika belum ada
-            $nginxAvailable = "/etc/nginx/sites-available/{$domain}";
-            if (!File::exists($nginxAvailable)) {
-                $nginxConfig = "";
-                
-                if ($project->project_type === 'laravel') {
-                    $nginxConfig = "server {\n"
-                        . "    listen 80;\n"
-                        . "    server_name {$domain};\n"
-                        . "    root {$projectDir}/public;\n"
-                        . "    index index.php index.html index.htm;\n"
-                        . "    charset utf-8;\n\n"
-                        . "    location / {\n"
-                        . "        try_files \$uri \$uri/ /index.php?\$query_string;\n"
-                        . "    }\n\n"
-                        . "    location ~ \.php$ {\n"
-                        . "        include snippets/fastcgi-php.conf;\n"
-                        . "        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;\n"
-                        . "    }\n"
-                        . "}\n";
-                } elseif ($project->project_type === 'nodejs') {
-                    $port = $project->node_port ?: 3000;
-                    $nginxConfig = "server {\n"
-                        . "    listen 80;\n"
-                        . "    server_name {$domain};\n\n"
-                        . "    location / {\n"
-                        . "        proxy_pass http://localhost:{$port};\n"
-                        . "        proxy_http_version 1.1;\n"
-                        . "        proxy_set_header Upgrade \$http_upgrade;\n"
-                        . "        proxy_set_header Connection 'upgrade';\n"
-                        . "        proxy_set_header Host \$host;\n"
-                        . "        proxy_cache_bypass \$http_upgrade;\n"
-                        . "    }\n"
-                        . "}\n";
-                } else {
-                    // static atau spa
-                    $publicPath = $projectDir;
-                    if (File::exists($projectDir . '/dist')) {
-                        $publicPath = $projectDir . '/dist';
-                    } elseif (File::exists($projectDir . '/build')) {
-                        $publicPath = $projectDir . '/build';
-                    }
-                    
-                    $fallback = $project->project_type === 'spa' ? '/index.html' : '=404';
-                    
-                    $nginxConfig = "server {\n"
-                        . "    listen 80;\n"
-                        . "    server_name {$domain};\n"
-                        . "    root {$publicPath};\n"
-                        . "    index index.html index.htm;\n\n"
-                        . "    location / {\n"
-                        . "        try_files \$uri \$uri/ {$fallback};\n"
-                        . "    }\n"
-                        . "}\n";
-                }
-
-                $tmpPath = storage_path("app/tmp_nginx_{$domain}");
-                File::put($tmpPath, $nginxConfig);
-                Process::run("sudo cp {$tmpPath} {$nginxAvailable} && sudo ln -sf {$nginxAvailable} /etc/nginx/sites-enabled/{$domain} && sudo systemctl reload nginx");
-                @unlink($tmpPath); 
-            }
-
-            // 5. Otomatisasi SSL (Certbot) dengan Error Handling
-            $sslCmd = "sudo certbot --nginx -d {$domain} --non-interactive --agree-tos --register-unsafely-without-email";
-            $processSsl = Process::run($sslCmd); 
-
-            if ($processSsl->failed()) {
-                return back()->with('success', 'Sistem berhasil di-deploy, namun SSL (HTTPS) gagal dipasang. Error: ' . $processSsl->errorOutput());
-            }
+            // 4. Konfigurasi Nginx dan SSL
+            $project->configureNginxAndSsl();
 
             return back()->with('success', 'Sistem otomatisasi sukses: Composer, NPM, DB, Migrasi, dan SSL terpasang sempurna!');
             

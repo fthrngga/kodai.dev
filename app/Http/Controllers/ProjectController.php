@@ -53,7 +53,7 @@ class ProjectController extends Controller
                 $serverDomain = 'kodaidev.my.id';
                 $serverIp = gethostbyname($serverDomain);
                 if ($serverIp === $serverDomain) {
-                    $serverIp = '122.251.27.185'; // Fallback VPS IP
+                    $serverIp = '34.50.74.177'; // Fallback VPS IP
                 }
                 
                 $customDomainIp = gethostbyname($customDomain);
@@ -156,52 +156,8 @@ class ProjectController extends Controller
                         . "Deteksi PHP: " . ($hasPhp ? "Aktif (Mengaktifkan PHP-FPM Nginx)" : "Nonaktif (Nginx Static Mode)")
                 ]);
 
-                // Buat Server Block Nginx
-                $nginxAvailable = "/etc/nginx/sites-available/{$domain}";
-                $nginxConfig = "";
-
-                if ($project->project_type === 'laravel') {
-                    $rootPath = $projectDir;
-                    if (\Illuminate\Support\Facades\File::exists($projectDir . '/public')) {
-                        $rootPath = $projectDir . '/public';
-                    }
-                    $nginxConfig = "server {\n"
-                        . "    listen 80;\n"
-                        . "    server_name {$domain};\n"
-                        . "    root {$rootPath};\n"
-                        . "    index index.php index.html index.htm;\n"
-                        . "    charset utf-8;\n\n"
-                        . "    location / {\n"
-                        . "        try_files \$uri \$uri/ /index.php?\$query_string;\n"
-                        . "    }\n\n"
-                        . "    location ~ \.php$ {\n"
-                        . "        include snippets/fastcgi-php.conf;\n"
-                        . "        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;\n"
-                        . "    }\n"
-                        . "}\n";
-                } else {
-                    $fallback = $project->project_type === 'spa' ? '/index.html' : '=404';
-                    $nginxConfig = "server {\n"
-                        . "    listen 80;\n"
-                        . "    server_name {$domain};\n"
-                        . "    root {$projectDir};\n"
-                        . "    index index.html index.htm;\n\n"
-                        . "    location / {\n"
-                        . "        try_files \$uri \$uri/ {$fallback};\n"
-                        . "    }\n"
-                        . "}\n";
-                }
-
-                $tmpPath = storage_path("app/tmp_nginx_{$domain}");
-                \Illuminate\Support\Facades\File::put($tmpPath, $nginxConfig);
-                \Illuminate\Support\Facades\Process::run("sudo cp {$tmpPath} {$nginxAvailable}");
-                \Illuminate\Support\Facades\Process::run("sudo ln -sf {$nginxAvailable} /etc/nginx/sites-enabled/{$domain}");
-                \Illuminate\Support\Facades\Process::run("sudo systemctl reload nginx");
-                @unlink($tmpPath);
-
-                // Jalankan SSL Certbot secara latar belakang/asinkron
-                $sslCmd = "sudo certbot --nginx -d {$domain} --non-interactive --agree-tos --register-unsafely-without-email";
-                \Illuminate\Support\Facades\Process::run($sslCmd);
+                // Buat Server Block Nginx dan SSL
+                $project->configureNginxAndSsl();
 
                 $project->update(['status' => 'active']);
 
@@ -346,48 +302,8 @@ class ProjectController extends Controller
                     . "Deteksi PHP: " . ($hasPhp ? "Aktif (Mengaktifkan PHP-FPM Nginx)" : "Nonaktif (Nginx Static Mode)")
             ]);
 
-            // Tulis Nginx
-            $nginxAvailable = "/etc/nginx/sites-available/{$domain}";
-            $nginxConfig = "";
-
-            if ($project->project_type === 'laravel') {
-                $rootPath = $projectDir;
-                if (\Illuminate\Support\Facades\File::exists($projectDir . '/public')) {
-                    $rootPath = $projectDir . '/public';
-                }
-                $nginxConfig = "server {\n"
-                    . "    listen 80;\n"
-                    . "    server_name {$domain};\n"
-                    . "    root {$rootPath};\n"
-                    . "    index index.php index.html index.htm;\n"
-                    . "    charset utf-8;\n\n"
-                    . "    location / {\n"
-                    . "        try_files \$uri \$uri/ /index.php?\$query_string;\n"
-                    . "    }\n\n"
-                    . "    location ~ \.php$ {\n"
-                    . "        include snippets/fastcgi-php.conf;\n"
-                    . "        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;\n"
-                    . "    }\n"
-                    . "}\n";
-            } else {
-                $fallback = $project->project_type === 'spa' ? '/index.html' : '=404';
-                $nginxConfig = "server {\n"
-                    . "    listen 80;\n"
-                    . "    server_name {$domain};\n"
-                    . "    root {$projectDir};\n"
-                    . "    index index.html index.htm;\n\n"
-                    . "    location / {\n"
-                    . "        try_files \$uri \$uri/ {$fallback};\n"
-                    . "    }\n"
-                    . "}\n";
-            }
-
-            $tmpPath = storage_path("app/tmp_nginx_{$domain}");
-            \Illuminate\Support\Facades\File::put($tmpPath, $nginxConfig);
-            \Illuminate\Support\Facades\Process::run("sudo cp {$tmpPath} {$nginxAvailable}");
-            \Illuminate\Support\Facades\Process::run("sudo ln -sf {$nginxAvailable} /etc/nginx/sites-enabled/{$domain}");
-            \Illuminate\Support\Facades\Process::run("sudo systemctl reload nginx");
-            @unlink($tmpPath);
+            // Konfigurasi Nginx dan SSL
+            $project->configureNginxAndSsl();
 
             return back()->with('success', 'Berkas proyek berhasil diperbarui secara instan!');
         } catch (\Exception $e) {
@@ -550,5 +466,105 @@ class ProjectController extends Controller
         DeployProject::dispatch($project);
 
         return back()->with('success', 'Perintah redeploy berhasil dikirim. Sistem sedang memperbarui berkas di latar belakang!');
+    }
+
+    public function updateDomain(Request $request, Project $project)
+    {
+        if (auth()->id() !== $project->user_id) {
+            abort(403, 'Akses ditolak.');
+        }
+
+        $rules = [
+            'subdomain' => 'required|string|max:255|regex:/^[a-zA-Z0-9\-]+$/|unique:projects,subdomain,' . $project->id,
+            'custom_domain' => 'nullable|string|max:255|unique:projects,custom_domain,' . $project->id,
+        ];
+
+        $validated = $request->validate($rules, [
+            'subdomain.regex' => 'Subdomain hanya boleh berisi huruf, angka, dan tanda hubung (-).',
+            'subdomain.unique' => 'Subdomain sudah digunakan oleh proyek lain.',
+            'custom_domain.unique' => 'Domain kustom sudah digunakan oleh proyek lain.',
+        ]);
+
+        $newSubdomain = trim($validated['subdomain']);
+        $newCustomDomain = !empty($validated['custom_domain']) ? trim($validated['custom_domain']) : null;
+
+        if ($newCustomDomain) {
+            $newCustomDomain = preg_replace('/^https?:\/\//i', '', $newCustomDomain);
+            $newCustomDomain = rtrim($newCustomDomain, '/');
+            $newCustomDomain = trim($newCustomDomain);
+
+            if (!app()->environment('local')) {
+                $serverDomain = 'kodaidev.my.id';
+                $serverIp = gethostbyname($serverDomain);
+                if ($serverIp === $serverDomain) {
+                    $serverIp = '34.50.74.177'; // Fallback VPS IP
+                }
+                
+                $customDomainIp = gethostbyname($newCustomDomain);
+
+                if ($customDomainIp === $newCustomDomain || $customDomainIp !== $serverIp) {
+                    return back()->withErrors([
+                        'custom_domain' => "Domain '{$newCustomDomain}' belum terhubung ke server kami. Harap tambahkan A-Record di DNS Registrar Anda yang mengarah ke IP VPS Kodaidev: {$serverIp} sebelum mengupdate domain."
+                    ])->withInput();
+                }
+            }
+        }
+
+        $oldSubdomain = $project->subdomain;
+        $oldCustomDomain = $project->custom_domain;
+        $oldDomain = $oldCustomDomain ?: $oldSubdomain . '.kodaidev.my.id';
+
+        try {
+            // 1. Pindahkan folder fisik jika subdomain berubah
+            if ($oldSubdomain !== $newSubdomain) {
+                $oldProjectDir = '/home/fathurrangga92/kodaidev-apps/' . $oldSubdomain;
+                $newProjectDir = '/home/fathurrangga92/kodaidev-apps/' . $newSubdomain;
+
+                if (\Illuminate\Support\Facades\File::exists($oldProjectDir)) {
+                    \Illuminate\Support\Facades\Process::run("mv {$oldProjectDir} {$newProjectDir}");
+                }
+                
+                // Update PM2 process name jika Node.js
+                if ($project->project_type === 'nodejs') {
+                    \Illuminate\Support\Facades\Process::run("pm2 delete kodai_{$oldSubdomain}");
+                    $runFile = "npm -- run start";
+                    if (!\Illuminate\Support\Facades\File::exists($newProjectDir . '/package.json')) {
+                        $runFile = \Illuminate\Support\Facades\File::exists($newProjectDir . '/server.js') ? 'server.js' : (\Illuminate\Support\Facades\File::exists($newProjectDir . '/app.js') ? 'app.js' : 'index.js');
+                    }
+                    $startCmd = "pm2 start " . ($runFile === "npm -- run start" ? "npm --name \"kodai_{$newSubdomain}\" -- run start" : "{$runFile} --name \"kodai_{$newSubdomain}\"");
+                    \Illuminate\Support\Facades\Process::path($newProjectDir)->run($startCmd);
+                }
+            }
+
+            // 2. Hapus berkas Nginx lama
+            $oldNginxAvailable = "/etc/nginx/sites-available/{$oldDomain}";
+            $oldNginxEnabled = "/etc/nginx/sites-enabled/{$oldDomain}";
+            \Illuminate\Support\Facades\Process::run("sudo rm -f {$oldNginxAvailable} {$oldNginxEnabled}");
+
+            // 3. Hapus sertifikat SSL Certbot lama jika domain kustom lama diubah/dihapus
+            if (!empty($oldCustomDomain) && $oldCustomDomain !== $newCustomDomain) {
+                \Illuminate\Support\Facades\Process::run("sudo certbot delete --cert-name {$oldCustomDomain} --non-interactive");
+            }
+
+            // 4. Update data proyek di database
+            $project->update([
+                'subdomain' => $newSubdomain,
+                'custom_domain' => $newCustomDomain,
+            ]);
+
+            // 5. Konfigurasi Nginx dan SSL Baru
+            $project->configureNginxAndSsl();
+
+            // 6. Buat Log
+            $project->deployments()->create([
+                'status' => 'success',
+                'log_output' => "Domain proyek berhasil diubah dari '{$oldDomain}' menjadi '" . ($newCustomDomain ?: $newSubdomain . '.kodaidev.my.id') . "'."
+            ]);
+
+            return back()->with('success', 'Domain proyek berhasil diperbarui!');
+
+        } catch (\Exception $e) {
+            return back()->withErrors(['subdomain' => 'Gagal mengubah domain proyek: ' . $e->getMessage()]);
+        }
     }
 }

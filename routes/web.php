@@ -18,8 +18,13 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function () {
+    $serverIp = gethostbyname('kodaidev.my.id');
+    if ($serverIp === 'kodaidev.my.id') {
+        $serverIp = '122.251.27.185';
+    }
     return Inertia::render('Dashboard', [
-        'projects' => auth()->user()->projects()->latest()->get()
+        'projects' => auth()->user()->projects()->latest()->get(),
+        'serverIp' => $serverIp
     ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 

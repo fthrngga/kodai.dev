@@ -17,7 +17,7 @@ const Spinner = () => (
     </svg>
 );
 
-export default function Dashboard({ auth, projects }) {
+export default function Dashboard({ auth, projects, serverIp = '122.251.27.185' }) {
     // --- State untuk Form Deploy Baru & Password Master ---
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         name: '',
@@ -315,7 +315,21 @@ export default function Dashboard({ auth, projects }) {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <InputLabel htmlFor="custom_domain" value="Domain Kustom" />
-                                    <TextInput id="custom_domain" className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white" value={data.custom_domain} onChange={(e) => setData('custom_domain', e.target.value)} placeholder="Opsional" />
+                                    <TextInput id="custom_domain" className="mt-1 block w-full text-xs font-mono py-2.5 px-4 bg-zinc-900 border-zinc-800 text-white" value={data.custom_domain} onChange={(e) => setData('custom_domain', e.target.value)} placeholder="Misal: domainku.com" />
+                                    <InputError className="mt-2 text-xs text-red-400" message={errors.custom_domain} />
+                                    {data.custom_domain && (
+                                        <div className="mt-2 p-3 bg-zinc-950 border border-zinc-800 rounded text-[10px] font-mono text-zinc-400 leading-relaxed space-y-1">
+                                            <div className="text-cyan-400 font-bold uppercase tracking-wider text-[9px] mb-1">📍 Panduan Konfigurasi DNS:</div>
+                                            <div>Harap arahkan domain Anda di Registrar DNS Anda sebelum deploy:</div>
+                                            <ul className="list-disc pl-4 text-zinc-500 space-y-0.5 mt-1">
+                                                <li>Tipe: <span className="text-zinc-300">A Record</span> | Host: <span className="text-zinc-300">@</span> (atau subdomain) | IP Target: <span className="text-cyan-400 font-bold">{serverIp}</span></li>
+                                                <li>Atau CNAME Record ke: <span className="text-zinc-300">kodaidev.my.id</span></li>
+                                            </ul>
+                                            <div className="text-[9px] text-zinc-500 mt-1 italic">
+                                                * DNS harus sudah mengarah sepenuhnya ke IP VPS Kodai Dev agar sertifikat SSL (HTTPS) dapat diterbitkan secara sukses.
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 {data.project_type === 'laravel' && (
                                     <div className="flex items-center mt-6">

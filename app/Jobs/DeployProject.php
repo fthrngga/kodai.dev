@@ -206,10 +206,23 @@ class DeployProject implements ShouldQueue
             File::delete($tempPath); // Bersihkan file sementara
             // ==========================================
 
+            // Otomatisasi SSL (Certbot)
+            $this->appendLog($deployment, "Memasang sertifikat SSL (HTTPS) via Certbot...\n");
+            $sslCmd = "sudo certbot --nginx -d {$domain} --non-interactive --agree-tos --register-unsafely-without-email";
+            $processSsl = Process::run($sslCmd);
+
+            if ($processSsl->failed()) {
+                $this->appendLog($deployment, "⚠️ Peringatan: SSL gagal dipasang. Situs tetap aktif dengan HTTP. Info: " . $processSsl->errorOutput() . "\n");
+                $accessProtocol = "http://";
+            } else {
+                $this->appendLog($deployment, "🔒 SSL (HTTPS) berhasil dikonfigurasi secara aman.\n");
+                $accessProtocol = "https://";
+            }
+
             $this->project->update(['status' => 'active']);
             $deployment->update([
                 'status' => 'success',
-                'log_output' => $deployment->log_output . "\n🎉 DEPLOYMENT SUKSES! Situs telah aktif dan siap diakses di http://{$domain}"
+                'log_output' => $deployment->log_output . "\n🎉 DEPLOYMENT SUKSES! Situs telah aktif dan siap diakses di {$accessProtocol}{$domain}"
             ]);
 
         } catch (\Exception $e) {

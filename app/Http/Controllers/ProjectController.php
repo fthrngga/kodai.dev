@@ -41,6 +41,31 @@ class ProjectController extends Controller
             return back()->withErrors(['deploy_password' => 'Akses Ditolak: Password Master Kodaidev salah!']);
         }
 
+        // Validasi DNS untuk Custom Domain (jika ada)
+        if (!empty($validated['custom_domain'])) {
+            $customDomain = trim($validated['custom_domain']);
+            $customDomain = preg_replace('/^https?:\/\//i', '', $customDomain);
+            $customDomain = rtrim($customDomain, '/');
+            $customDomain = trim($customDomain);
+            $validated['custom_domain'] = $customDomain;
+
+            if (!app()->environment('local')) {
+                $serverDomain = 'kodaidev.my.id';
+                $serverIp = gethostbyname($serverDomain);
+                if ($serverIp === $serverDomain) {
+                    $serverIp = '122.251.27.185'; // Fallback VPS IP
+                }
+                
+                $customDomainIp = gethostbyname($customDomain);
+
+                if ($customDomainIp === $customDomain || $customDomainIp !== $serverIp) {
+                    return back()->withErrors([
+                        'custom_domain' => "Domain '{$customDomain}' belum terhubung ke server kami. Harap tambahkan A-Record di DNS Registrar Anda yang mengarah ke IP VPS Kodaidev: {$serverIp} sebelum mendeploy proyek ini."
+                    ])->withInput();
+                }
+            }
+        }
+
         // Hapus password dan source_type agar tidak disimpan ke tabel projects
         unset($validated['deploy_password']);
         unset($validated['source_type']);

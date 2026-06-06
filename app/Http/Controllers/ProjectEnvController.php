@@ -50,6 +50,8 @@ class ProjectEnvController extends Controller
             $commands = [];
             $envVariables = [
                 'APP_ENV' => 'production',
+                'HOME' => '/home/fathurrangga92',
+                'COMPOSER_HOME' => '/home/fathurrangga92/.composer',
             ];
 
             if ($isPhp || $isNode) {

@@ -24,6 +24,9 @@ class DeployProject implements ShouldQueue
 
     public function handle(): void
     {
+        putenv("HOME=/home/fathurrangga92");
+        putenv("COMPOSER_HOME=/home/fathurrangga92/.composer");
+
         $this->project->update(['status' => 'building']);
         $deployment = $this->project->deployments()->create([
             'status' => 'building',

@@ -93,6 +93,23 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
         return () => clearInterval(interval);
     }, [isDeploying]);
 
+    // --- REALTIME LOG POLLING ---
+    useEffect(() => {
+        let interval;
+        if (isLogModalOpen && selectedProject) {
+            // Polling log tiap 2 detik jika modal log sedang terbuka
+            interval = setInterval(async () => {
+                try {
+                    const response = await axios.get(route('projects.logs', selectedProject.id));
+                    setLogContent(response.data.logs);
+                } catch (error) {
+                    console.error("Gagal memperbarui log otomatis:", error);
+                }
+            }, 2000);
+        }
+        return () => clearInterval(interval);
+    }, [isLogModalOpen, selectedProject]);
+
     // --- DETEKSI UPDATE & REDEPLOY MANUAL ---
     const [updates, setUpdates] = useState({});
 
@@ -817,8 +834,8 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
             </Modal>
 
             {/* --- MODAL VIEW LOGS --- */}
-            <Modal show={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} maxWidth="3xl">
-                <div className="p-6 bg-zinc-950 border border-zinc-800 text-white relative overflow-hidden">
+            <Modal show={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} maxWidth="2xl">
+                <div className="px-8 py-6 bg-zinc-950 border border-zinc-800 text-white relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-zinc-500 via-cyan-500 to-zinc-500" />
                     <header className="mb-4 flex justify-between items-center">
                         <div>
@@ -837,7 +854,7 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
                             <Spinner /> Membaca log dari server...
                         </div>
                     ) : (
-                        <div className="border border-zinc-900 bg-black p-4 font-mono text-xs text-green-450 h-[350px] overflow-y-auto whitespace-pre-wrap select-text leading-relaxed">
+                        <div className="border border-zinc-900 bg-black px-6 py-5 font-mono text-xs text-green-450 h-[350px] overflow-y-auto whitespace-pre-wrap select-text leading-relaxed">
                             {logContent || 'Tidak ada catatan log.'}
                         </div>
                     )}

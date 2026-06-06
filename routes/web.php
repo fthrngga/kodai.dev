@@ -46,5 +46,6 @@ Route::post('/projects/{project}/save-file', [ProjectController::class, 'saveFil
 Route::get('/projects/{project}/check-update', [ProjectController::class, 'checkUpdate'])->middleware('auth')->name('projects.check-update');
 Route::post('/projects/{project}/redeploy', [ProjectController::class, 'redeploy'])->middleware('auth')->name('projects.redeploy');
 Route::post('/projects/{project}/update-domain', [ProjectController::class, 'updateDomain'])->middleware('auth')->name('projects.update-domain');
+Route::get('/projects/{project}/logs', [ProjectController::class, 'getLogs'])->middleware('auth')->name('projects.logs');
 
 require __DIR__.'/auth.php';

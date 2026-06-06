@@ -238,6 +238,27 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
         });
     };
 
+    // Modals View Logs
+    const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+    const [logContent, setLogContent] = useState('');
+    const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+
+    const openLogModal = async (project) => {
+        setSelectedProject(project);
+        setIsLogModalOpen(true);
+        setIsLoadingLogs(true);
+        setLogContent('');
+
+        try {
+            const response = await axios.get(route('projects.logs', project.id));
+            setLogContent(response.data.logs);
+        } catch (error) {
+            setLogContent('Gagal memuat log: ' + (error.response?.data?.error || error.message));
+        } finally {
+            setIsLoadingLogs(false);
+        }
+    };
+
     const openEditorModal = async (project) => {
         setSelectedProject(project);
         setIsEditorModalOpen(true);
@@ -588,6 +609,14 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
                                                                 )}
                                                             </>
                                                         )}
+                                                        {project.status.toLowerCase() !== 'pending' && (
+                                                            <button
+                                                                onClick={() => openLogModal(project)}
+                                                                className="text-[10px] uppercase tracking-wider text-zinc-300 hover:text-white font-bold border border-zinc-800 hover:border-zinc-700 bg-zinc-900/5 hover:bg-zinc-900 px-3 py-1.5 transition-all active:scale-95"
+                                                            >
+                                                                📋 Lihat Log
+                                                            </button>
+                                                        )}
                                                         <button
                                                             onClick={() => deleteProject(project.id)}
                                                             className="text-[10px] uppercase tracking-wider text-red-400 hover:text-red-300 font-bold border border-red-500/20 hover:border-red-500 bg-red-500/5 hover:bg-red-500/10 px-3 py-1.5 transition-all active:scale-95"
@@ -784,6 +813,38 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
                             </PrimaryButton>
                         </div>
                     </form>
+                </div>
+            </Modal>
+
+            {/* --- MODAL VIEW LOGS --- */}
+            <Modal show={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} maxWidth="3xl">
+                <div className="p-6 bg-zinc-950 border border-zinc-800 text-white relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-zinc-500 via-cyan-500 to-zinc-500" />
+                    <header className="mb-4 flex justify-between items-center">
+                        <div>
+                            <span className="text-[9px] tracking-[0.3em] uppercase text-cyan-400 font-medium font-mono">07. Deployment Terminal Logs</span>
+                            <h2 className="text-xl font-light tracking-tight text-white uppercase mt-1">
+                                Log Proyek ({selectedProject?.name})
+                            </h2>
+                        </div>
+                        <div className="text-[10px] text-zinc-500 font-mono">
+                            Status: <span className="uppercase text-cyan-400">{selectedProject?.status}</span>
+                        </div>
+                    </header>
+
+                    {isLoadingLogs ? (
+                        <div className="h-[350px] flex items-center justify-center border border-zinc-900 bg-black text-zinc-500 font-mono text-xs">
+                            <Spinner /> Membaca log dari server...
+                        </div>
+                    ) : (
+                        <div className="border border-zinc-900 bg-black p-4 font-mono text-xs text-green-450 h-[350px] overflow-y-auto whitespace-pre-wrap select-text leading-relaxed">
+                            {logContent || 'Tidak ada catatan log.'}
+                        </div>
+                    )}
+
+                    <div className="mt-6 flex justify-end">
+                        <SecondaryButton onClick={() => setIsLogModalOpen(false)}>Tutup</SecondaryButton>
+                    </div>
                 </div>
             </Modal>
 

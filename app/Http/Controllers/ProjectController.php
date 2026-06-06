@@ -567,4 +567,17 @@ class ProjectController extends Controller
             return back()->withErrors(['subdomain' => 'Gagal mengubah domain proyek: ' . $e->getMessage()]);
         }
     }
+
+    public function getLogs(Project $project)
+    {
+        if (auth()->id() !== $project->user_id) {
+            return response()->json(['error' => 'Akses ditolak.'], 403);
+        }
+
+        $latestDeployment = $project->deployments()->latest()->first();
+
+        return response()->json([
+            'logs' => $latestDeployment ? $latestDeployment->log_output : 'Belum ada riwayat deployment.'
+        ]);
+    }
 }

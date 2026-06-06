@@ -24,8 +24,13 @@ class DeployProject implements ShouldQueue
 
     public function handle(): void
     {
-        putenv("HOME=/home/fathurrangga92");
-        putenv("COMPOSER_HOME=/home/fathurrangga92/.composer");
+        // Env vars yang dioper langsung ke setiap subprocess
+        // (putenv() TIDAK diwarisi oleh subprocess Process::run)
+        $env = [
+            'HOME'          => '/home/fathurrangga92',
+            'COMPOSER_HOME' => '/home/fathurrangga92/.composer',
+            'PATH'          => '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/node/bin',
+        ];
 
         $this->project->update(['status' => 'building']);
         $deployment = $this->project->deployments()->create([
@@ -73,7 +78,7 @@ class DeployProject implements ShouldQueue
             if ($this->project->project_type === 'laravel') {
                 if (File::exists($projectDir . '/composer.json')) {
                     $this->appendLog($deployment, "Menginstal dependensi Composer...\n");
-                    $composer = Process::path($projectDir)->run("composer install --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-reqs");
+                    $composer = Process::path($projectDir)->env($env)->run("composer install --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-reqs");
                     if ($composer->failed()) {
                         throw new \Exception("Gagal menginstal dependensi Composer: " . $composer->errorOutput());
                     }
@@ -81,7 +86,11 @@ class DeployProject implements ShouldQueue
 
                 if (File::exists($projectDir . '/package.json')) {
                     $this->appendLog($deployment, "Menginstal dependensi NPM dan melakukan kompilasi Build...\n");
-                    $build = Process::path($projectDir)->run("npm install && npm run build");
+                    $npmInstall = Process::path($projectDir)->env($env)->run("npm install --engine-strict false");
+                    if ($npmInstall->failed()) {
+                        throw new \Exception("Gagal menginstal dependensi NPM: " . $npmInstall->errorOutput());
+                    }
+                    $build = Process::path($projectDir)->env($env)->run("npm run build");
                     if ($build->failed()) {
                         throw new \Exception("Gagal mengkompilasi aset frontend: " . $build->errorOutput());
                     }
@@ -89,7 +98,7 @@ class DeployProject implements ShouldQueue
             } elseif ($this->project->project_type === 'nodejs') {
                 if (File::exists($projectDir . '/package.json')) {
                     $this->appendLog($deployment, "Menginstal dependensi NPM...\n");
-                    $install = Process::path($projectDir)->run("npm install");
+                    $install = Process::path($projectDir)->env($env)->run("npm install --engine-strict false");
                     if ($install->failed()) {
                         throw new \Exception("Gagal menginstal dependensi npm: " . $install->errorOutput());
                     }
@@ -98,7 +107,7 @@ class DeployProject implements ShouldQueue
                     $pkgContent = json_decode(File::get($projectDir . '/package.json'), true);
                     if (isset($pkgContent['scripts']['build'])) {
                         $this->appendLog($deployment, "Melakukan kompilasi Build NPM...\n");
-                        $build = Process::path($projectDir)->run("npm run build");
+                        $build = Process::path($projectDir)->env($env)->run("npm run build");
                         if ($build->failed()) {
                             throw new \Exception("Gagal mengkompilasi build: " . $build->errorOutput());
                         }
@@ -117,14 +126,14 @@ class DeployProject implements ShouldQueue
                 }
 
                 // Coba restart dulu, jika gagal/belum ada, daftarkan baru
-                $pm2Restart = Process::path($projectDir)->run("pm2 restart kodai_{$this->project->subdomain}");
+                $pm2Restart = Process::path($projectDir)->env($env)->run("pm2 restart kodai_{$this->project->subdomain}");
                 if ($pm2Restart->failed()) {
                     $runFile = "npm -- run start";
                     if (!File::exists($projectDir . '/package.json')) {
                         $runFile = File::exists($projectDir . '/server.js') ? 'server.js' : (File::exists($projectDir . '/app.js') ? 'app.js' : 'index.js');
                     }
                     $startCmd = "pm2 start " . ($runFile === "npm -- run start" ? "npm --name \"kodai_{$this->project->subdomain}\" -- run start" : "{$runFile} --name \"kodai_{$this->project->subdomain}\"");
-                    $pm2Start = Process::path($projectDir)->run($startCmd);
+                    $pm2Start = Process::path($projectDir)->env($env)->run($startCmd);
                     if ($pm2Start->failed()) {
                         throw new \Exception("Gagal menjalankan aplikasi Node.js via PM2: " . $pm2Start->errorOutput());
                     }
@@ -133,7 +142,11 @@ class DeployProject implements ShouldQueue
                 // Tipe static atau spa
                 if (File::exists($projectDir . '/package.json')) {
                     $this->appendLog($deployment, "Menginstal dependensi NPM dan melakukan kompilasi Build...\n");
-                    $build = Process::path($projectDir)->run("npm install && npm run build");
+                    $npmInstall = Process::path($projectDir)->env($env)->run("npm install --engine-strict false");
+                    if ($npmInstall->failed()) {
+                        throw new \Exception("Gagal menginstal dependensi NPM: " . $npmInstall->errorOutput());
+                    }
+                    $build = Process::path($projectDir)->env($env)->run("npm run build");
                     if ($build->failed()) {
                         throw new \Exception("Gagal mengkompilasi aset frontend: " . $build->errorOutput());
                     }

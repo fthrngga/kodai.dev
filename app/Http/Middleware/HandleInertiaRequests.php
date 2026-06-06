@@ -34,6 +34,11 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            // Flash messages — dibaca frontend setelah redirect
+            'flash' => [
+                'success' => session('success'),
+                'error'   => session('error'),
+            ],
         ];
     }
 }

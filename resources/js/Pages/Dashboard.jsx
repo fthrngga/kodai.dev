@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -98,6 +98,13 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
         setToast({ show: true, message, type });
         setTimeout(() => setToast(t => ({ ...t, show: false })), 5000);
     };
+
+    // Baca flash messages dari Inertia shared props (bekerja lintas redirect)
+    const { flash } = usePage().props;
+    useEffect(() => {
+        if (flash?.success) showToast(flash.success, 'success');
+        if (flash?.error)   showToast(flash.error, 'error');
+    }, [flash?.success, flash?.error]);
 
     // Modals Edit Domain States
     const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
@@ -265,7 +272,7 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
         envForm.post(route('projects.env.store', selectedProject.id), {
             onSuccess: () => {
                 setIsEnvModalOpen(false);
-                showToast('Sistem otomatisasi sukses! Composer, NPM, Database, Migrasi, dan SSL terpasang sempurna.', 'success');
+                // Toast akan muncul otomatis via flash message (usePage().props.flash)
             }
         });
     };    

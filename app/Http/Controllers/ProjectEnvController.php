@@ -64,7 +64,7 @@ class ProjectEnvController extends Controller
             }
 
             if ($project->project_type === 'laravel') {
-                $commands[] = "composer install --no-interaction --prefer-dist --optimize-autoloader";
+                $commands[] = "composer install --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-reqs";
                 $commands[] = "php artisan config:clear";
                 $commands[] = "php artisan key:generate --force";
                 

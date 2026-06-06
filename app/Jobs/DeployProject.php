@@ -70,7 +70,10 @@ class DeployProject implements ShouldQueue
             if ($this->project->project_type === 'laravel') {
                 if (File::exists($projectDir . '/composer.json')) {
                     $this->appendLog($deployment, "Menginstal dependensi Composer...\n");
-                    Process::path($projectDir)->run("composer install --no-interaction --prefer-dist --optimize-autoloader");
+                    $composer = Process::path($projectDir)->run("composer install --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-reqs");
+                    if ($composer->failed()) {
+                        throw new \Exception("Gagal menginstal dependensi Composer: " . $composer->errorOutput());
+                    }
                 }
 
                 if (File::exists($projectDir . '/package.json')) {

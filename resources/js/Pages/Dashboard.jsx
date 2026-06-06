@@ -60,6 +60,18 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
         isDanger: false
     });
 
+    // Modals Edit Domain States
+    const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
+    const domainForm = useForm({
+        subdomain: '',
+        custom_domain: '',
+    });
+
+    // Modals View Logs States
+    const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+    const [logContent, setLogContent] = useState('');
+    const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+
     const triggerConfirm = ({ title, message, onConfirm, confirmText = 'Yakin', cancelText = 'Batal', isDanger = false }) => {
         setConfirmModal({
             isOpen: true,
@@ -228,12 +240,7 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
         });
     };
 
-    // Modals Edit Domain
-    const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
-    const domainForm = useForm({
-        subdomain: '',
-        custom_domain: '',
-    });
+
 
     const openDomainModal = (project) => {
         setSelectedProject(project);
@@ -255,10 +262,7 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
         });
     };
 
-    // Modals View Logs
-    const [isLogModalOpen, setIsLogModalOpen] = useState(false);
-    const [logContent, setLogContent] = useState('');
-    const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+
 
     const openLogModal = async (project) => {
         setSelectedProject(project);

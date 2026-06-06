@@ -49,6 +49,36 @@ export default function Dashboard({ auth, projects, serverIp = '122.251.27.185' 
         uploaded_file: null,
     });
 
+    // State Modal Konfirmasi Kustom
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: null,
+        confirmText: 'Yakin',
+        cancelText: 'Batal',
+        isDanger: false
+    });
+
+    const triggerConfirm = ({ title, message, onConfirm, confirmText = 'Yakin', cancelText = 'Batal', isDanger = false }) => {
+        setConfirmModal({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                onConfirm();
+                closeConfirm();
+            },
+            confirmText,
+            cancelText,
+            isDanger
+        });
+    };
+
+    const closeConfirm = () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+    };
+
     // --- REALTIME POLLING: Cek otomatis tanpa refresh ---
     const isDeploying = projects?.some(project => project.status.toLowerCase() === 'pending');
 
@@ -85,11 +115,18 @@ export default function Dashboard({ auth, projects, serverIp = '122.251.27.185' 
     }, [projects]);
 
     const handleRedeploy = (projectId) => {
-        if (confirm('Apakah Anda yakin ingin mendeploy ulang proyek ini dari GitHub?')) {
-            router.post(route('projects.redeploy', projectId), {}, {
-                preserveScroll: true
-            });
-        }
+        triggerConfirm({
+            title: 'Redeploy Proyek',
+            message: 'Apakah Anda yakin ingin menarik kode terbaru dari GitHub dan mendeploy ulang proyek ini?',
+            confirmText: 'Redeploy Sekarang',
+            cancelText: 'Batal',
+            isDanger: false,
+            onConfirm: () => {
+                router.post(route('projects.redeploy', projectId), {}, {
+                    preserveScroll: true
+                });
+            }
+        });
     };
 
     // Buka Modal Password
@@ -115,9 +152,16 @@ export default function Dashboard({ auth, projects, serverIp = '122.251.27.185' 
 
     // Fungsi Hapus
     const deleteProject = (id) => {
-        if (confirm('Yakin ingin menghapus proyek ini? Semua riwayat akan ikut terhapus.')) {
-            router.delete(route('projects.destroy', id));
-        }
+        triggerConfirm({
+            title: 'Hapus Proyek',
+            message: 'Yakin ingin menghapus proyek ini? Semua berkas di server, database, SSL, dan riwayat deployment proyek ini akan terhapus secara permanen.',
+            confirmText: 'Hapus Permanen',
+            cancelText: 'Batal',
+            isDanger: true,
+            onConfirm: () => {
+                router.delete(route('projects.destroy', id));
+            }
+        });
     };
 
     // Fungsi Membuka Modal .env
@@ -695,6 +739,35 @@ export default function Dashboard({ auth, projects, serverIp = '122.251.27.185' 
                                 {isSavingCode ? <><Spinner /> Menyimpan...</> : 'Simpan Kode'}
                             </PrimaryButton>
                         </div>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* --- MODAL KONFIRMASI CUSTOM --- */}
+            <Modal show={confirmModal.isOpen} onClose={closeConfirm} maxWidth="md">
+                <div className="p-6 bg-zinc-950 border border-zinc-800 text-white relative overflow-hidden">
+                    {/* Top border highlight gradient */}
+                    <div className={`absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r ${confirmModal.isDanger ? 'from-red-500 via-orange-500 to-red-500' : 'from-cyan-500 via-blue-500 to-cyan-500'}`} />
+                    
+                    <h2 className="text-base font-light uppercase tracking-widest text-white flex items-center gap-2">
+                        <span className={`${confirmModal.isDanger ? 'text-red-500 animate-pulse' : 'text-cyan-400'} font-bold`}>
+                            {confirmModal.isDanger ? '⚠️' : '⚡'}
+                        </span>
+                        {confirmModal.title}
+                    </h2>
+                    
+                    <p className="mt-4 text-xs text-zinc-400 font-mono leading-relaxed">
+                        {confirmModal.message}
+                    </p>
+
+                    <div className="mt-6 flex justify-end gap-3">
+                        <SecondaryButton onClick={closeConfirm}>{confirmModal.cancelText}</SecondaryButton>
+                        <PrimaryButton 
+                            onClick={confirmModal.onConfirm}
+                            className={confirmModal.isDanger ? '!bg-red-600 hover:!bg-red-500 !text-white border-red-700 font-bold uppercase tracking-wider text-[10px]' : '!bg-cyan-500 hover:!bg-cyan-400 !text-black border-cyan-600 font-bold uppercase tracking-wider text-[10px]'}
+                        >
+                            {confirmModal.confirmText}
+                        </PrimaryButton>
                     </div>
                 </div>
             </Modal>

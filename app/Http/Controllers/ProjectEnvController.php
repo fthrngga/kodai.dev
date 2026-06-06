@@ -33,13 +33,19 @@ class ProjectEnvController extends Controller
                     throw new \Exception("Gagal Setup DB: " . $processDb->errorOutput());
                 }
 
-                // Injeksi .ENV untuk DB
+                // Injeksi .ENV untuk DB — hapus konfigurasi DB lama dari input user
                 $envContent = preg_replace('/^DB_.*$/m', '', $request->env_text);
-                
+                // Juga hapus CACHE_STORE jika user sudah set, karena kita akan override
+                $envContent = preg_replace('/^CACHE_STORE.*$/m', '', $envContent);
+                // Fix APP_URL: pastikan https jika ada wildcard atau SSL
+                $envContent = preg_replace('/^APP_URL=http:\/\//m', 'APP_URL=https://', $envContent);
+
                 $dbConfig = "\n\n# --- AUTO INJECTED BY KODAIDEV ---\n";
                 $dbConfig .= "DB_CONNECTION=mysql\nDB_HOST=localhost\nDB_PORT=3306\n";
                 $dbConfig .= "DB_DATABASE={$dbName}\nDB_USERNAME=fathur\nDB_PASSWORD=11223344\n";
-                
+                // Gunakan file cache driver agar php artisan cache:clear tidak butuh tabel 'cache'
+                $dbConfig .= "CACHE_STORE=file\nSESSION_DRIVER=file\n";
+
                 File::put($projectDir . '/.env', trim($envContent) . $dbConfig);
             } else {
                 // Untuk statis/SPA, langsung tulis env saja tanpa modifikasi DB
@@ -80,10 +86,17 @@ class ProjectEnvController extends Controller
                 $commands[] = "php artisan storage:link";
                 
                 if (File::exists($projectDir . '/package.json')) {
-                    $commands[] = "npm install";
+                    $commands[] = "npm install --engine-strict false";
                     $commands[] = "npm run build";
                 }
-                $commands[] = "php artisan optimize:clear";
+                // Gunakan clear individual — JANGAN optimize:clear karena dia memanggil
+                // cache:clear yang butuh tabel 'cache' di DB (belum tentu ada sebelum migrate)
+                $commands[] = "php artisan config:clear";
+                $commands[] = "php artisan route:clear";
+                $commands[] = "php artisan view:clear";
+                $commands[] = "php artisan event:clear";
+                $commands[] = "php artisan config:cache";
+                $commands[] = "php artisan route:cache";
             } elseif ($project->project_type === 'nodejs') {
                 if (File::exists($projectDir . '/package.json')) {
                     $commands[] = "npm install";

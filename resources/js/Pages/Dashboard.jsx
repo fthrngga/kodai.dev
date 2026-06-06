@@ -232,7 +232,7 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
         let template = '';
         
         if (project.project_type === 'laravel') {
-            template = `APP_NAME="${project.name}"\nAPP_ENV=production\nAPP_KEY=\nAPP_DEBUG=false\nAPP_URL=http://${domain}\n\n# PASTE SISA .ENV ANDA DI BAWAH INI:\n# (TIDAK PERLU memasukkan DB_DATABASE dll, Kodaidev akan membuatnya otomatis!)\n\n`;
+            template = `APP_NAME="${project.name}"\nAPP_ENV=production\nAPP_KEY=\nAPP_DEBUG=false\nAPP_URL=https://${domain}\n\n# PASTE SISA .ENV ANDA DI BAWAH INI:\n# (TIDAK PERLU memasukkan DB_DATABASE dll, Kodaidev akan membuatnya otomatis!)\n# (CACHE_STORE & SESSION_DRIVER otomatis diset ke 'file' oleh Kodaidev)\n\n`;
         } else if (project.project_type === 'nodejs') {
             template = `PORT=${project.node_port || 3000}\nNODE_ENV=production\n\n# PASTE SISA .ENV ANDA DI BAWAH INI:\n# (Kodaidev secara otomatis menginjeksi variabel DB_HOST, DB_DATABASE, dll. jika Anda butuh MySQL)\n\n`;
         } else {

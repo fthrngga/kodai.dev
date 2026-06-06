@@ -49,9 +49,12 @@ class ProjectEnvController extends Controller
             // 2. Tentukan daftar perintah build berdasarkan tipe proyek
             $commands = [];
             $envVariables = [
-                'APP_ENV' => 'production',
-                'HOME' => '/home/fathurrangga92',
-                'COMPOSER_HOME' => '/home/fathurrangga92/.composer',
+                'APP_ENV'           => 'production',
+                'HOME'              => '/home/fathurrangga92',
+                'COMPOSER_HOME'     => '/home/fathurrangga92/.composer',
+                'PATH'              => '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/node/bin',
+                'KODAIDEV_BUILD'    => 'true',
+                'CI'                => 'true',
             ];
 
             if ($isPhp || $isNode) {

@@ -87,3 +87,17 @@
     @apply font-sans;
   }
 }
+
+@layer utilities {
+  @keyframes shimmer {
+    0%   { transform: translateX(-150%); }
+    100% { transform: translateX(400%); }
+  }
+  @keyframes ellipsis {
+    0%   { content: ''; }
+    25%  { content: '.'; }
+    50%  { content: '..'; }
+    75%  { content: '...'; }
+    100% { content: ''; }
+  }
+}

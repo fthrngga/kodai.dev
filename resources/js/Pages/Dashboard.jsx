@@ -9,12 +9,44 @@ import Modal from '@/Components/Modal';
 import SecondaryButton from '@/Components/SecondaryButton';
 import axios from 'axios';
 
-// Komponen Loading Spinner
+// Spinner kecil untuk tombol
 const Spinner = () => (
-    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
+    <span className="inline-flex items-center justify-center w-3.5 h-3.5 mr-2">
+        <span className="absolute inline-flex w-3.5 h-3.5 rounded-full bg-white/30 animate-ping" />
+        <span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-white" />
+    </span>
+);
+
+// Loading state premium untuk area konten
+const PulseLoader = ({ label = 'Memuat...' }) => (
+    <div className="flex flex-col items-center justify-center gap-5 py-8 select-none">
+        {/* Orbit ring */}
+        <div className="relative w-16 h-16">
+            <span className="absolute inset-0 rounded-full border-2 border-cyan-500/20" />
+            <span className="absolute inset-0 rounded-full border-t-2 border-cyan-400 animate-spin" />
+            <span className="absolute inset-1.5 rounded-full border-2 border-cyan-500/10" />
+            <span className="absolute inset-1.5 rounded-full border-b-2 border-purple-400 animate-spin [animation-duration:1.5s] [animation-direction:reverse]" />
+            <span className="absolute inset-0 flex items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            </span>
+        </div>
+        {/* Loading bar */}
+        <div className="w-40 h-px bg-zinc-800 overflow-hidden rounded-full">
+            <div className="h-full bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-[shimmer_1.5s_infinite] w-1/3" />
+        </div>
+        <p className="text-xs font-mono text-zinc-500 tracking-widest uppercase animate-pulse">{label}</p>
+    </div>
+);
+
+// Badge animasi "Syncing" di header tabel
+const SyncingBadge = () => (
+    <div className="flex items-center gap-2.5 text-[10px] text-zinc-400 font-mono">
+        <div className="relative flex items-center justify-center w-5 h-5">
+            <span className="absolute w-5 h-5 rounded-full border border-cyan-500/30 animate-ping [animation-duration:1.5s]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+        </div>
+        <span className="tracking-widest uppercase text-cyan-400/80">Syncing with server<span className="animate-[ellipsis_1.5s_steps(4,end)_infinite]">...</span></span>
+    </div>
 );
 
 export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' }) {
@@ -500,11 +532,7 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
                                 <span className="text-[9px] tracking-[0.3em] uppercase text-purple-400 font-medium">02. Active Instances</span>
                                 <h2 className="text-xl font-light tracking-tight text-white uppercase mt-1">Daftar Proyek Aktif</h2>
                             </div>
-                            {isDeploying && (
-                                <div className="text-[10px] text-zinc-400 font-mono flex items-center gap-2">
-                                    <Spinner /> Syncing with Server...
-                                </div>
-                            )}
+                            {isDeploying && <SyncingBadge />}
                         </header>
 
                         <div className="overflow-x-auto">
@@ -854,11 +882,11 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
                     </header>
 
                     {isLoadingLogs ? (
-                        <div className="h-[350px] flex items-center justify-center border border-zinc-900 bg-black text-zinc-500 font-mono text-xs">
-                            <Spinner /> Membaca log dari server...
+                        <div className="h-[350px] flex items-center justify-center border border-zinc-900 bg-black">
+                            <PulseLoader label="Membaca log dari server" />
                         </div>
                     ) : (
-                        <div className="border border-zinc-900 bg-black px-6 py-5 font-mono text-xs text-green-450 h-[350px] overflow-y-auto whitespace-pre-wrap select-text leading-relaxed">
+                        <div className="border border-zinc-900 bg-black px-6 py-5 font-mono text-xs text-green-400 h-[350px] overflow-y-auto whitespace-pre-wrap select-text leading-relaxed">
                             {logContent || 'Tidak ada catatan log.'}
                         </div>
                     )}
@@ -885,8 +913,8 @@ export default function Dashboard({ auth, projects, serverIp = '34.50.74.177' })
                     </header>
 
                     {isLoadingCode ? (
-                        <div className="h-[400px] flex items-center justify-center border border-zinc-900 bg-zinc-950 text-zinc-500 font-mono text-xs">
-                            <Spinner /> Membaca berkas dari server...
+                        <div className="h-[400px] flex items-center justify-center border border-zinc-900 bg-zinc-950">
+                            <PulseLoader label="Membaca berkas dari server" />
                         </div>
                     ) : (
                         <div className="border border-zinc-800 flex bg-zinc-950 overflow-hidden rounded-md shadow-2xl relative h-[350px] md:h-[450px]">

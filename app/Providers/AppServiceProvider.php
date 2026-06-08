@@ -23,8 +23,9 @@ class AppServiceProvider extends ServiceProvider
     {
         Vite::prefetch(concurrency: 3);
 
-        // Force HTTPS on Railway (behind reverse proxy)
-        if ($this->app->environment('production')) {
+        // Force HTTPS agar form POST (seperti Login) tidak di-redirect menjadi GET (301)
+        // yang menyebabkan request seakan-akan "tidak terjadi apa-apa".
+        if (str_contains(config('app.url'), 'https://') || $this->app->environment('production')) {
             URL::forceScheme('https');
         }
     }

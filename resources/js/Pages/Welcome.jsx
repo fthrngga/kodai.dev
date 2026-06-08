@@ -19,7 +19,7 @@ export default function Welcome({ auth }) {
                 {/* ADVANCED BACKGROUND OVERLAY */}
                 <div className="fixed inset-0 z-0">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,#1e293b_0%,transparent_50%)] opacity-40" />
-                    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150" />
+                    <div className="absolute inset-0 bg-[url('/assets/images/noise.svg')] opacity-20 brightness-100 contrast-150" />
                     <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:64px_64px]" />
                 </div>
 

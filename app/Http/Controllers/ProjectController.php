@@ -419,8 +419,10 @@ class ProjectController extends Controller
 
             if ($response->failed()) {
                 return response()->json([
-                    'error' => 'Gagal menghubungi API GitHub: ' . ($response->json('message') ?: $response->body())
-                ], $response->status());
+                    'has_update' => false,
+                    'github_error' => true,
+                    'message' => 'Gagal menghubungi API GitHub: ' . ($response->json('message') ?: $response->body())
+                ]);
             }
 
             $latestCommitSha = $response->json('sha');

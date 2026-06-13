@@ -52,14 +52,23 @@ class Project extends Model
         $wildcardKey = "/etc/letsencrypt/live/kodaidev.my.id-0001/privkey.pem";
 
         // Cek menggunakan sudo karena folder /etc/letsencrypt/live/ biasanya milik root dan tidak bisa dibaca PHP langsung
-        if (!\Illuminate\Support\Facades\Process::run("sudo test -f {$wildcardCert}")->successful()) {
+        $check1 = \Illuminate\Support\Facades\Process::run("sudo test -f {$wildcardCert}");
+        if (!$check1->successful()) {
             $wildcardCert = "/etc/letsencrypt/live/kodaidev.my.id/fullchain.pem";
             $wildcardKey = "/etc/letsencrypt/live/kodaidev.my.id/privkey.pem";
+            $this->appendLog($deployment, "DEBUG: wildCert-0001 tidak ditemukan atau error: " . trim($check1->errorOutput()) . "\n");
+        } else {
+            $this->appendLog($deployment, "DEBUG: wildCert-0001 ditemukan!\n");
         }
 
+        $checkCert = \Illuminate\Support\Facades\Process::run("sudo test -f {$wildcardCert}");
+        $checkKey = \Illuminate\Support\Facades\Process::run("sudo test -f {$wildcardKey}");
+        
+        $this->appendLog($deployment, "DEBUG: Check Cert: " . ($checkCert->successful() ? 'OK' : 'FAIL ' . trim($checkCert->errorOutput())) . "\n");
+        $this->appendLog($deployment, "DEBUG: Check Key: " . ($checkKey->successful() ? 'OK' : 'FAIL ' . trim($checkKey->errorOutput())) . "\n");
+
         // Cek apakah wildcard SSL terpasang di server VPS
-        $hasWildcard = \Illuminate\Support\Facades\Process::run("sudo test -f {$wildcardCert}")->successful() && 
-                       \Illuminate\Support\Facades\Process::run("sudo test -f {$wildcardKey}")->successful();
+        $hasWildcard = $checkCert->successful() && $checkKey->successful();
 
         $nginxConfig = "";
 

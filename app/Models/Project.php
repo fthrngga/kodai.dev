@@ -51,13 +51,15 @@ class Project extends Model
         $wildcardCert = "/etc/letsencrypt/live/kodaidev.my.id-0001/fullchain.pem";
         $wildcardKey = "/etc/letsencrypt/live/kodaidev.my.id-0001/privkey.pem";
 
-        if (!\Illuminate\Support\Facades\File::exists($wildcardCert)) {
+        // Cek menggunakan sudo karena folder /etc/letsencrypt/live/ biasanya milik root dan tidak bisa dibaca PHP langsung
+        if (!\Illuminate\Support\Facades\Process::run("sudo test -f {$wildcardCert}")->successful()) {
             $wildcardCert = "/etc/letsencrypt/live/kodaidev.my.id/fullchain.pem";
             $wildcardKey = "/etc/letsencrypt/live/kodaidev.my.id/privkey.pem";
         }
 
         // Cek apakah wildcard SSL terpasang di server VPS
-        $hasWildcard = \Illuminate\Support\Facades\File::exists($wildcardCert) && \Illuminate\Support\Facades\File::exists($wildcardKey);
+        $hasWildcard = \Illuminate\Support\Facades\Process::run("sudo test -f {$wildcardCert}")->successful() && 
+                       \Illuminate\Support\Facades\Process::run("sudo test -f {$wildcardKey}")->successful();
 
         $nginxConfig = "";
 
@@ -198,8 +200,8 @@ class Project extends Model
                 // Certbot --nginx bisa merusak try_files directive kita.
                 // Timpa ulang config Nginx dengan SSL config yang benar setelah sertifikat diperoleh.
                 $certBase = "/etc/letsencrypt/live/{$domain}";
-                $sslCert  = \Illuminate\Support\Facades\File::exists("{$certBase}-0001/fullchain.pem") ? "{$certBase}-0001/fullchain.pem" : "{$certBase}/fullchain.pem";
-                $sslKey   = \Illuminate\Support\Facades\File::exists("{$certBase}-0001/privkey.pem")  ? "{$certBase}-0001/privkey.pem"  : "{$certBase}/privkey.pem";
+                $sslCert  = \Illuminate\Support\Facades\Process::run("sudo test -f {$certBase}-0001/fullchain.pem")->successful() ? "{$certBase}-0001/fullchain.pem" : "{$certBase}/fullchain.pem";
+                $sslKey   = \Illuminate\Support\Facades\Process::run("sudo test -f {$certBase}-0001/privkey.pem")->successful() ? "{$certBase}-0001/privkey.pem" : "{$certBase}/privkey.pem";
 
                 $sslNginxConfig = "";
                 if ($this->project_type === 'laravel') {

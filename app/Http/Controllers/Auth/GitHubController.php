@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
@@ -37,7 +38,15 @@ class GitHubController extends Controller
             return redirect()->route('dashboard');
 
         } catch (\Exception $e) {
-            dd("Sistem OAuth Gagal: " . $e->getMessage());
+            Log::error('GitHub OAuth callback failed', [
+                'message' => $e->getMessage(),
+                'code' => request()->query('code'),
+                'host' => request()->getHost(),
+                'ip' => request()->ip(),
+            ]);
+
+            return redirect()->route('login')
+                ->with('error', 'Login dengan GitHub gagal. Silakan coba lagi nanti.');
         }
     }
 }

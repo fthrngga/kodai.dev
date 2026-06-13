@@ -3,7 +3,7 @@ import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowUpRight } from 'lucide-react';
 
-export default function Login({ status, canResetPassword }) {
+export default function Login({ status, canResetPassword, flash }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         email: '',
         password: '',
@@ -30,6 +30,12 @@ export default function Login({ status, canResetPassword }) {
             {status && (
                 <div className="mb-6 p-4 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs tracking-widest uppercase text-center">
                     {status}
+                </div>
+            )}
+
+            {flash?.error && (
+                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-400 text-xs tracking-widest uppercase text-center">
+                    {flash.error}
                 </div>
             )}
 

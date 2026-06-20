@@ -41,4 +41,9 @@ return [
         ],
     ],
 
+    'vps2' => [
+        'url' => env('VPS2_URL'),
+        'token' => env('VPS2_TOKEN'),
+    ],
+
 ];

@@ -48,4 +48,13 @@ Route::post('/projects/{project}/redeploy', [ProjectController::class, 'redeploy
 Route::post('/projects/{project}/update-domain', [ProjectController::class, 'updateDomain'])->middleware('auth')->name('projects.update-domain');
 Route::get('/projects/{project}/logs', [ProjectController::class, 'getLogs'])->middleware('auth')->name('projects.logs');
 
+use App\Http\Controllers\AiBuilderController;
+
+Route::middleware('auth')->group(function () {
+    Route::get('/ai-builder', [AiBuilderController::class, 'index'])->name('ai-builder.index');
+    Route::post('/ai-builder', [AiBuilderController::class, 'store'])->name('ai-builder.store');
+    Route::get('/ai-builder/{id}', [AiBuilderController::class, 'show'])->name('ai-builder.show');
+    Route::post('/ai-builder/{id}/stream', [AiBuilderController::class, 'generateStream'])->name('ai-builder.stream');
+});
+
 require __DIR__.'/auth.php';

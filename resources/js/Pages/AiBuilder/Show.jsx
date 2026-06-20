@@ -25,8 +25,16 @@ export default function Show({ auth, project }) {
 
     const getCleanHtml = (raw) => {
         if (!raw) return '';
+        
+        // 1. Try to extract from Markdown block
         const match = raw.match(/```(?:html|javascript|css)?\n([\s\S]*?)(?:```|$)/i);
         if (match) return match[1];
+        
+        // 2. Fallback: try to find raw HTML tags if AI forgot backticks
+        const htmlMatch = raw.match(/(<html[\s\S]*?<\/html>)/i);
+        if (htmlMatch) return htmlMatch[1];
+        
+        // 3. Last resort
         return raw.replace(/```(?:html)?/g, '');
     };
 
@@ -52,6 +60,11 @@ export default function Show({ auth, project }) {
             const scrollY = iframe.contentWindow.scrollY;
 
             if (newDoc.body) {
+                // Copy body attributes (crucial for Tailwind background colors on body)
+                Array.from(newDoc.body.attributes).forEach(attr => {
+                    doc.body.setAttribute(attr.name, attr.value);
+                });
+                
                 doc.body.innerHTML = newDoc.body.innerHTML;
             }
 

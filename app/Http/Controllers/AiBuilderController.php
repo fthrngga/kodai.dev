@@ -120,10 +120,18 @@ class AiBuilderController extends Controller
 
         return response()->stream(function () use ($request, $project, $chat) {
             try {
+                // Format history to [ {role: user, content: prompt}, {role: model, content: response} ]
+                $formattedHistory = [];
+                $pastChats = $project->chats()->where('id', '!=', $chat->id)->where('status', 'completed')->orderBy('created_at')->get();
+                foreach ($pastChats as $pastChat) {
+                    $formattedHistory[] = ['role' => 'user', 'content' => $pastChat->prompt];
+                    $formattedHistory[] = ['role' => 'model', 'content' => $pastChat->response];
+                }
+
                 $stream = $this->aiWorkerService->generateStream([
                     'project_id' => (string) $project->id,
                     'prompt' => $request->prompt,
-                    'history' => $project->chats()->where('id', '!=', $chat->id)->get()->toArray()
+                    'history' => $formattedHistory
                 ]);
 
                 $fullResponse = "";

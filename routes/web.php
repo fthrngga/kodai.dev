@@ -54,6 +54,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/ai-builder', [AiBuilderController::class, 'index'])->name('ai-builder.index');
     Route::post('/ai-builder', [AiBuilderController::class, 'store'])->name('ai-builder.store');
     Route::get('/ai-builder/{id}', [AiBuilderController::class, 'show'])->name('ai-builder.show');
+    Route::put('/ai-builder/{id}', [AiBuilderController::class, 'update'])->name('ai-builder.update');
+    Route::delete('/ai-builder/{id}', [AiBuilderController::class, 'destroy'])->name('ai-builder.destroy');
     Route::post('/ai-builder/{id}/stream', [AiBuilderController::class, 'generateStream'])->name('ai-builder.stream');
     Route::post('/ai-builder/{id}/host', [AiBuilderController::class, 'hostToKodaidev'])->name('ai-builder.host');
 });

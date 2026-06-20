@@ -63,6 +63,12 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Pusat Kendali
                                 </NavLink>
+                                <NavLink
+                                    href={route('ai-builder.index')}
+                                    active={route().current('ai-builder.*')}
+                                >
+                                    Laboratorium AI
+                                </NavLink>
                             </div>
                         </div>
 

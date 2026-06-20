@@ -43,14 +43,15 @@ class AiBuilderController extends Controller
     public function store(Request $request)
     {
         $request->validate([
+            'name' => 'required|string|max:255',
             'prompt' => 'required|string',
         ]);
 
         // Create a new AI project
         $project = AiProject::create([
             'user_id' => auth()->id(),
-            'name' => 'Project ' . now()->format('YmdHis'),
-            'slug' => Str::slug('Project ' . now()->format('YmdHis') . '-' . Str::random(5)),
+            'name' => $request->name,
+            'slug' => Str::slug($request->name . '-' . Str::random(5)),
             'status' => 'draft'
         ]);
 
@@ -62,6 +63,29 @@ class AiBuilderController extends Controller
         ]);
 
         return redirect()->route('ai-builder.show', $project->id);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $project = AiProject::findOrFail($id);
+        if ($project->user_id !== auth()->id()) abort(403);
+
+        $request->validate(['name' => 'required|string|max:255']);
+        $project->update(['name' => $request->name]);
+        
+        return back()->with('success', 'Nama proyek AI berhasil diperbarui.');
+    }
+
+    public function destroy($id)
+    {
+        $project = AiProject::findOrFail($id);
+        if ($project->user_id !== auth()->id()) abort(403);
+        
+        // AiProject model should have cascade delete for AiChats, but we can do it explicitly just in case
+        $project->chats()->delete();
+        $project->delete();
+        
+        return redirect()->route('ai-builder.index')->with('success', 'Proyek AI berhasil dihapus.');
     }
 
     public function generateStream(Request $request, $id)
@@ -76,11 +100,23 @@ class AiBuilderController extends Controller
             'prompt' => 'required|string',
         ]);
 
-        $chat = AiChat::create([
-            'ai_project_id' => $project->id,
-            'prompt' => $request->prompt,
-            'status' => 'processing'
-        ]);
+        // Cari chat yang sedang diproses (dari store method) atau buat baru
+        $chat = $project->chats()
+            ->where('prompt', $request->prompt)
+            ->where('status', 'processing')
+            ->where(function($q) {
+                $q->whereNull('response')->orWhere('response', '');
+            })
+            ->latest()
+            ->first();
+
+        if (!$chat) {
+            $chat = AiChat::create([
+                'ai_project_id' => $project->id,
+                'prompt' => $request->prompt,
+                'status' => 'processing'
+            ]);
+        }
 
         return response()->stream(function () use ($request, $project, $chat) {
             try {

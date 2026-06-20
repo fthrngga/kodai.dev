@@ -1,10 +1,12 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, router } from '@inertiajs/react';
 import PrimaryButton from '@/Components/PrimaryButton';
 import InputLabel from '@/Components/InputLabel';
+import TextInput from '@/Components/TextInput';
 
 export default function Index({ auth, projects }) {
     const { data, setData, post, processing, errors } = useForm({
+        name: '',
         prompt: '',
     });
 
@@ -36,6 +38,19 @@ export default function Index({ auth, projects }) {
                         </header>
 
                         <form onSubmit={submit} className="mt-6 space-y-6">
+                            <div>
+                                <InputLabel htmlFor="name" value="Nama Proyek" className="text-xs text-zinc-400 font-mono uppercase tracking-wider" />
+                                <TextInput
+                                    id="name"
+                                    type="text"
+                                    className="mt-2 block w-full text-xs font-mono py-3 px-4 bg-zinc-900 border-zinc-800 text-cyan-50 focus:border-cyan-500 focus:ring-cyan-500/50 shadow-inner"
+                                    value={data.name}
+                                    onChange={(e) => setData('name', e.target.value)}
+                                    required
+                                    placeholder="Contoh: Landing Page Rumah Sakit"
+                                />
+                            </div>
+
                             <div>
                                 <InputLabel htmlFor="prompt" value="Instruksi Pembangunan" className="text-xs text-zinc-400 font-mono uppercase tracking-wider" />
                                 <textarea
@@ -80,13 +95,24 @@ export default function Index({ auth, projects }) {
                                                 </span>
                                             </p>
                                         </div>
-                                        <div className="mt-6 relative z-10">
+                                        <div className="mt-6 relative z-10 flex justify-between items-center">
                                             <Link 
                                                 href={route('ai-builder.show', project.id)}
                                                 className="inline-flex items-center text-[10px] font-mono text-purple-400 hover:text-purple-300 uppercase tracking-widest group-hover/card:underline"
                                             >
                                                 Buka Workspace &rarr;
                                             </Link>
+                                            
+                                            <button
+                                                onClick={() => {
+                                                    if (confirm('Apakah Anda yakin ingin menghapus proyek ini?')) {
+                                                        router.delete(route('ai-builder.destroy', project.id));
+                                                    }
+                                                }}
+                                                className="text-[10px] text-red-500/70 hover:text-red-400 uppercase tracking-widest font-mono transition-colors"
+                                            >
+                                                Hapus
+                                            </button>
                                         </div>
                                     </div>
                                 ))}

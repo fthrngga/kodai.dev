@@ -165,7 +165,8 @@ export default function Show({ auth, project }) {
                                     {/* AI Response */}
                                     {(chat.response || chat.status === 'processing') && (
                                         <div className="flex justify-start">
-                                            <div className="bg-gray-100 text-gray-800 rounded-lg rounded-tl-none py-3 px-4 max-w-[90%] text-sm overflow-x-auto">
+                                            <div className={`rounded-lg rounded-tl-none py-3 px-4 max-w-[90%] text-sm overflow-x-auto ${chat.status === 'error' ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-gray-100 text-gray-800'}`}>
+                                                {chat.status === 'error' && <div className="font-bold mb-1">System Error:</div>}
                                                 {chat.response ? (
                                                     <pre className="whitespace-pre-wrap font-sans">{chat.response}</pre>
                                                 ) : (

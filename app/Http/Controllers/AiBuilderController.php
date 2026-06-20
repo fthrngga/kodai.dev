@@ -85,7 +85,7 @@ class AiBuilderController extends Controller
         return response()->stream(function () use ($request, $project, $chat) {
             try {
                 $stream = $this->aiWorkerService->generateStream([
-                    'project_id' => $project->id,
+                    'project_id' => (string) $project->id,
                     'prompt' => $request->prompt,
                     'history' => $project->chats()->where('id', '!=', $chat->id)->get()->toArray()
                 ]);

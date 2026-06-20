@@ -15,9 +15,13 @@ export default function Show({ auth, project }) {
     const [inputPrompt, setInputPrompt] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [isHosting, setIsHosting] = useState(false);
-    const [livePreviewCode, setLivePreviewCode] = useState('');
+    const lastCompletedChat = (project.chats || []).slice().reverse().find(c => c.status === 'completed');
+    const [livePreviewCode, setLivePreviewCode] = useState(lastCompletedChat ? lastCompletedChat.response : '');
     const [debouncedPreviewCode, setDebouncedPreviewCode] = useState('');
     const messagesEndRef = useRef(null);
+    const iframeRef = useRef(null);
+
+    const responseQueueRef = useRef('');
 
     const getCleanHtml = (raw) => {
         if (!raw) return '';
@@ -26,10 +30,43 @@ export default function Show({ auth, project }) {
         return raw.replace(/```(?:html)?/g, '');
     };
 
+    const updateIframeContent = (newHtml) => {
+        const iframe = iframeRef.current;
+        if (!iframe) return;
+        
+        try {
+            const doc = iframe.contentDocument;
+            if (!doc) return;
+
+            if (!doc.body || doc.body.innerHTML.trim() === '') {
+                doc.open();
+                doc.write(newHtml);
+                doc.close();
+                return;
+            }
+
+            const parser = new DOMParser();
+            const newDoc = parser.parseFromString(newHtml, 'text/html');
+
+            const scrollX = iframe.contentWindow.scrollX;
+            const scrollY = iframe.contentWindow.scrollY;
+
+            if (newDoc.body) {
+                doc.body.innerHTML = newDoc.body.innerHTML;
+            }
+
+            iframe.contentWindow.scrollTo(scrollX, scrollY);
+        } catch (e) {
+            console.error("Iframe injection error:", e);
+        }
+    };
+
     useEffect(() => {
         const handler = setTimeout(() => {
-            setDebouncedPreviewCode(getCleanHtml(livePreviewCode));
-        }, 300);
+            const cleanHtml = getCleanHtml(livePreviewCode);
+            setDebouncedPreviewCode(cleanHtml);
+            if (cleanHtml) updateIframeContent(cleanHtml);
+        }, 800); // Fast 800ms debounce since DOM injection is smooth
         return () => clearTimeout(handler);
     }, [livePreviewCode]);
 
@@ -51,6 +88,7 @@ export default function Show({ auth, project }) {
     const handleStream = async (promptText, isInitial = false) => {
         setIsGenerating(true);
         setLivePreviewCode('');
+        responseQueueRef.current = '';
         
         let currentChats = [...chats];
         
@@ -62,6 +100,7 @@ export default function Show({ auth, project }) {
                 status: 'processing'
             });
             setChats(currentChats);
+            if (!isInitial) setInputPrompt('');
         }
 
         try {
@@ -80,16 +119,18 @@ export default function Show({ auth, project }) {
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder('utf-8');
-            let isDone = false;
+            let isStreamDone = false;
             
             const chatIndex = currentChats.length - 1;
 
-            while (!isDone) {
-                const { value, done } = await reader.read();
-                isDone = done;
-                if (value) {
-                    const chunk = decoder.decode(value, { stream: true });
-                    
+            // Typewriter effect function
+            const typeNext = () => {
+                if (responseQueueRef.current.length > 0) {
+                    // Take characters based on queue size to maintain smooth speed
+                    const charsToTake = Math.max(1, Math.ceil(responseQueueRef.current.length / 20));
+                    const chunk = responseQueueRef.current.slice(0, charsToTake);
+                    responseQueueRef.current = responseQueueRef.current.slice(charsToTake);
+
                     setLivePreviewCode(prev => prev + chunk);
                     
                     setChats(prevChats => {
@@ -99,16 +140,35 @@ export default function Show({ auth, project }) {
                         }
                         return newChats;
                     });
+                    
+                    setTimeout(typeNext, 20); // 20ms typing speed
+                } else {
+                    if (isStreamDone) {
+                        setChats(prevChats => {
+                            const newChats = [...prevChats];
+                            if (newChats[chatIndex]) {
+                                 newChats[chatIndex].status = 'completed';
+                            }
+                            return newChats;
+                        });
+                        setIsGenerating(false);
+                    } else {
+                        setTimeout(typeNext, 50); // Wait for more data
+                    }
+                }
+            };
+            
+            // Start the typewriter loop
+            typeNext();
+
+            while (!isStreamDone) {
+                const { value, done } = await reader.read();
+                isStreamDone = done;
+                if (value) {
+                    const chunk = decoder.decode(value, { stream: true });
+                    responseQueueRef.current += chunk;
                 }
             }
-
-            setChats(prevChats => {
-                const newChats = [...prevChats];
-                if (newChats[chatIndex]) {
-                     newChats[chatIndex].status = 'completed';
-                }
-                return newChats;
-            });
 
         } catch (error) {
             console.error('Error during streaming:', error);
@@ -121,11 +181,7 @@ export default function Show({ auth, project }) {
                 }
                 return newChats;
             });
-        } finally {
             setIsGenerating(false);
-            if (!isInitial) {
-                setInputPrompt('');
-            }
         }
     };
 
@@ -178,11 +234,11 @@ export default function Show({ auth, project }) {
                                     
                                     {/* AI Response */}
                                     {(chat.response || chat.status === 'processing') && (
-                                        <div className="flex justify-start">
-                                            <div className={`py-3 px-4 max-w-[95%] text-[11px] overflow-x-auto leading-relaxed border ${chat.status === 'error' ? 'bg-red-950/50 text-red-400 border-red-500/30' : 'bg-zinc-900 text-zinc-300 border-zinc-800 shadow-inner'}`}>
+                                        <div className="flex justify-start w-full">
+                                            <div className={`py-3 px-4 max-w-full text-[11px] overflow-hidden break-words leading-relaxed border ${chat.status === 'error' ? 'bg-red-950/50 text-red-400 border-red-500/30' : 'bg-zinc-900 text-zinc-300 border-zinc-800 shadow-inner'}`}>
                                                 {chat.status === 'error' && <div className="font-bold mb-1 text-red-500 uppercase tracking-widest text-[9px]">FATAL ERROR:</div>}
                                                 {chat.response ? (
-                                                    <pre className="whitespace-pre-wrap font-mono">{chat.response}</pre>
+                                                    <pre className="whitespace-pre-wrap break-words font-mono">{chat.response}</pre>
                                                 ) : (
                                                     <CyberPulse />
                                                 )}
@@ -252,9 +308,15 @@ export default function Show({ auth, project }) {
                         {/* Iframe Wrapper */}
                         <div className="flex-1 bg-zinc-950 flex items-center justify-center relative p-1">
                             <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5 pointer-events-none" />
-                            {debouncedPreviewCode || project.preview_url ? (
+                            {debouncedPreviewCode ? (
                                 <iframe 
-                                    {...(debouncedPreviewCode ? { srcDoc: debouncedPreviewCode } : { src: project.preview_url })}
+                                    ref={iframeRef}
+                                    className="w-full h-full border border-zinc-800 bg-white relative z-10"
+                                    title="Live Preview"
+                                />
+                            ) : project.preview_url ? (
+                                <iframe 
+                                    src={project.preview_url}
                                     className="w-full h-full border border-zinc-800 bg-white relative z-10"
                                     title="Live Preview"
                                 />

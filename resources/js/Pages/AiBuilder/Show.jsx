@@ -8,7 +8,23 @@ export default function Show({ auth, project }) {
     const [chats, setChats] = useState(project.chats || []);
     const [inputPrompt, setInputPrompt] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
+    const [livePreviewCode, setLivePreviewCode] = useState('');
+    const [debouncedPreviewCode, setDebouncedPreviewCode] = useState('');
     const messagesEndRef = useRef(null);
+
+    const getCleanHtml = (raw) => {
+        if (!raw) return '';
+        const match = raw.match(/```(?:html|javascript|css)?\n([\s\S]*?)(?:```|$)/);
+        if (match) return match[1];
+        return raw.replace(/```(?:html)?/g, '');
+    };
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedPreviewCode(getCleanHtml(livePreviewCode));
+        }, 300);
+        return () => clearTimeout(handler);
+    }, [livePreviewCode]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -28,6 +44,7 @@ export default function Show({ auth, project }) {
 
     const handleStream = async (promptText, isInitial = false) => {
         setIsGenerating(true);
+        setLivePreviewCode('');
         
         let currentChats = [...chats];
         
@@ -68,6 +85,8 @@ export default function Show({ auth, project }) {
                 isDone = done;
                 if (value) {
                     const chunk = decoder.decode(value, { stream: true });
+                    
+                    setLivePreviewCode(prev => prev + chunk);
                     
                     // Update state to append the new chunk
                     setChats(prevChats => {
@@ -203,10 +222,10 @@ export default function Show({ auth, project }) {
                             </div>
                         </div>
                         <div className="flex-1 bg-gray-50 flex items-center justify-center relative">
-                            {project.preview_url ? (
+                            {debouncedPreviewCode || project.preview_url ? (
                                 <iframe 
-                                    src={project.preview_url} 
-                                    className="w-full h-full border-none"
+                                    {...(debouncedPreviewCode ? { srcDoc: debouncedPreviewCode } : { src: project.preview_url })}
+                                    className="w-full h-full border-none bg-white"
                                     title="Live Preview"
                                 />
                             ) : (

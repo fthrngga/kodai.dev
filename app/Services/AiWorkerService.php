@@ -22,9 +22,16 @@ class AiWorkerService
     public function generate(array $payload)
     {
         try {
+            $baseUrl = rtrim($this->baseUrl, '/');
+            if (str_ends_with($baseUrl, '/api/v1/generate')) {
+                $baseUrl = substr($baseUrl, 0, -16);
+            } elseif (str_ends_with($baseUrl, '/api/v1/generate/stream')) {
+                $baseUrl = substr($baseUrl, 0, -23);
+            }
+
             $response = Http::withToken($this->token)
                 ->timeout(120) // Provide a longer timeout for AI generation
-                ->post("{$this->baseUrl}/api/v1/generate", $payload);
+                ->post("{$baseUrl}/api/v1/generate", $payload);
 
             if ($response->successful()) {
                 return $response->json();
@@ -44,10 +51,17 @@ class AiWorkerService
     public function generateStream(array $payload)
     {
         try {
+            $baseUrl = rtrim($this->baseUrl, '/');
+            if (str_ends_with($baseUrl, '/api/v1/generate')) {
+                $baseUrl = substr($baseUrl, 0, -16);
+            } elseif (str_ends_with($baseUrl, '/api/v1/generate/stream')) {
+                $baseUrl = substr($baseUrl, 0, -23);
+            }
+
             $response = Http::withToken($this->token)
                 ->timeout(120)
                 ->withOptions(['stream' => true])
-                ->post("{$this->baseUrl}/api/v1/generate/stream", $payload);
+                ->post("{$baseUrl}/api/v1/generate/stream", $payload);
 
             return $response->toPsrResponse()->getBody();
         } catch (\Exception $e) {

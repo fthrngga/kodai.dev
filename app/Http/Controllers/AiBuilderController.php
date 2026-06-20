@@ -83,28 +83,41 @@ class AiBuilderController extends Controller
         ]);
 
         return response()->stream(function () use ($request, $project, $chat) {
-            $stream = $this->aiWorkerService->generateStream([
-                'project_id' => $project->id,
-                'prompt' => $request->prompt,
-                'history' => $project->chats()->where('id', '!=', $chat->id)->get()->toArray()
-            ]);
+            try {
+                $stream = $this->aiWorkerService->generateStream([
+                    'project_id' => $project->id,
+                    'prompt' => $request->prompt,
+                    'history' => $project->chats()->where('id', '!=', $chat->id)->get()->toArray()
+                ]);
 
-            $fullResponse = "";
+                $fullResponse = "";
 
-            while (!$stream->eof()) {
-                $chunk = $stream->read(1024);
-                $fullResponse .= $chunk;
-                echo $chunk;
+                while (!$stream->eof()) {
+                    $chunk = $stream->read(1024);
+                    $fullResponse .= $chunk;
+                    echo $chunk;
+                    ob_flush();
+                    flush();
+                }
+
+                // Update chat when stream finishes
+                $chat->update([
+                    'response' => $fullResponse,
+                    'status' => 'completed'
+                ]);
+            } catch (\Exception $e) {
+                // Return a clean error message to the frontend instead of HTML
+                $errorMsg = "Gagal terhubung ke AI Worker Server. Pastikan VPS 2 berjalan dan URL/Token sudah benar.";
+                echo $errorMsg;
                 ob_flush();
                 flush();
+                
+                $chat->update([
+                    'response' => $errorMsg,
+                    'status' => 'error',
+                    'error_message' => $e->getMessage()
+                ]);
             }
-
-            // Update chat when stream finishes
-            $chat->update([
-                'response' => $fullResponse,
-                'status' => 'completed'
-            ]);
-
         }, 200, [
             'Cache-Control' => 'no-cache',
             'Content-Type' => 'text/event-stream',

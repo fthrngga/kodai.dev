@@ -55,6 +55,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/ai-builder', [AiBuilderController::class, 'store'])->name('ai-builder.store');
     Route::get('/ai-builder/{id}', [AiBuilderController::class, 'show'])->name('ai-builder.show');
     Route::post('/ai-builder/{id}/stream', [AiBuilderController::class, 'generateStream'])->name('ai-builder.stream');
+    Route::post('/ai-builder/{id}/host', [AiBuilderController::class, 'hostToKodaidev'])->name('ai-builder.host');
 });
 
 require __DIR__.'/auth.php';

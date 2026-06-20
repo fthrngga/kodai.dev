@@ -124,4 +124,83 @@ class AiBuilderController extends Controller
             'X-Accel-Buffering' => 'no' // Important for Nginx
         ]);
     }
+
+    public function hostToKodaidev(Request $request, $id)
+    {
+        $project = AiProject::with('chats')->findOrFail($id);
+
+        if ($project->user_id !== auth()->id()) {
+            abort(403);
+        }
+
+        // Ambil chat terakhir yang selesai
+        $latestChat = $project->chats()->where('status', 'completed')->latest()->first();
+
+        if (!$latestChat || empty($latestChat->response)) {
+            return back()->with('error', 'Belum ada hasil generate kode yang selesai.');
+        }
+
+        // Ekstrak HTML menggunakan Regex
+        $pattern = '/```(?:html)?\n([\s\S]*?)(?:```|$)/i';
+        preg_match($pattern, $latestChat->response, $matches);
+        
+        $cleanCode = $latestChat->response;
+        if (!empty($matches[1])) {
+            $cleanCode = $matches[1];
+        } else {
+            $cleanCode = str_replace(['```html', '```'], '', $cleanCode);
+        }
+        $cleanCode = trim($cleanCode);
+
+        // Buat subdomain dasar
+        $baseSlug = Str::slug($project->name);
+        $subdomain = $baseSlug;
+        
+        $counter = 1;
+        while (\App\Models\Project::where('subdomain', $subdomain)->exists()) {
+            $subdomain = $baseSlug . '-' . $counter;
+            $counter++;
+        }
+
+        // Simpan data proyek sebagai tipe 'static'
+        $newProject = $request->user()->projects()->create([
+            'name' => $project->name . ' (AI)',
+            'subdomain' => $subdomain,
+            'project_type' => 'static',
+            'run_migration' => false,
+            'status' => 'pending'
+        ]);
+
+        $projectDir = '/home/fathurrangga92/kodaidev-apps/' . $subdomain;
+
+        try {
+            // Buat direktori jika belum ada
+            if (!\Illuminate\Support\Facades\File::exists($projectDir)) {
+                \Illuminate\Support\Facades\File::makeDirectory($projectDir, 0755, true);
+            }
+
+            // Tulis index.html
+            \Illuminate\Support\Facades\File::put($projectDir . '/index.html', $cleanCode);
+
+            // Log deployment
+            $newProject->deployments()->create([
+                'status' => 'success',
+                'log_output' => "Deploy instan via AI Builder berhasil!\nFile terbuat di: {$projectDir}\nTipe: Static Mode Nginx"
+            ]);
+
+            // Buat Server Block Nginx dan SSL
+            $newProject->configureNginxAndSsl();
+            $newProject->update(['status' => 'active']);
+
+            return redirect()->route('dashboard')->with('success', 'Proyek AI berhasil di-hosting ke Kodaidev!');
+            
+        } catch (\Exception $e) {
+            $newProject->update(['status' => 'failed']);
+            $newProject->deployments()->create([
+                'status' => 'failed',
+                'log_output' => "Gagal deploy AI project: " . $e->getMessage()
+            ]);
+            return back()->with('error', 'Gagal mempublikasikan proyek: ' . $e->getMessage());
+        }
+    }
 }

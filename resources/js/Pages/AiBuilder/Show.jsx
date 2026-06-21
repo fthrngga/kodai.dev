@@ -74,9 +74,9 @@ export default function Show({ auth, project }) {
                 
                 let finalHtml = newHtml;
                 
-                // Mencegah "Script error. Line 0" dengan memaksa CORS pada semua CDN
+                // Mencegah "Script error. Line 0" dengan memaksa CORS pada unpkg (Tailwind CDN sering diblokir jika pakai CORS)
                 finalHtml = finalHtml.replace(/<script src="([^"]+)"/g, (match, url) => {
-                    if ((url.includes('unpkg.com') || url.includes('tailwindcss.com')) && !match.includes('crossorigin')) {
+                    if (url.includes('unpkg.com') && !match.includes('crossorigin')) {
                         return `<script crossorigin="anonymous" src="${url}"`;
                     }
                     return match;

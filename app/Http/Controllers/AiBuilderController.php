@@ -196,6 +196,27 @@ class AiBuilderController extends Controller
         }
         $cleanCode = trim($cleanCode);
 
+        // --- SISTEM SELF-HEALING UNTUK HOSTED ENVIRONMENT ---
+        // 1. Perbaiki URL CDN React yang salah ketik oleh AI
+        $cleanCode = str_replace('react.production.js', 'react.production.min.js', $cleanCode);
+        $cleanCode = str_replace('react-dom.production.js', 'react-dom.production.min.js', $cleanCode);
+
+        // 2. Matikan data-type="module" agar Babel tidak menggunakan module browser
+        $cleanCode = preg_replace('/<script\s+type="text\/babel"\s+data-type="module"/i', '<script type="text/babel"', $cleanCode);
+
+        // 3. Konfigurasi Preset Babel secara Programatis untuk memaksa CLASSIC RUNTIME
+        $babelConfig = <<<HTML
+        <script>
+            if (window.Babel && window.Babel.availablePresets) {
+                window.Babel.registerPreset('classic-react', {
+                    presets: [ [window.Babel.availablePresets['react'], { "runtime": "classic" }] ]
+                });
+            }
+        </script>
+HTML;
+        $cleanCode = preg_replace('/<script\s+type="text\/babel"[^>]*>/i', $babelConfig . "\n" . '<script type="text/babel" data-presets="env,classic-react">', $cleanCode);
+        // ----------------------------------------------------
+
         // Buat subdomain dasar
         $baseSlug = Str::slug($project->name);
         $subdomain = $baseSlug;

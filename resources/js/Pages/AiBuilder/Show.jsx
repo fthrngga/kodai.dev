@@ -54,10 +54,34 @@ export default function Show({ auth, project }) {
             const isReactSPA = newHtml.includes('text/babel');
 
             if (isReactSPA || !doc.body || doc.body.innerHTML.trim() === '') {
-                // SPA React WAJIB menggunakan doc.write agar browser mengeksekusi script Babel Standalone
-                doc.open();
-                doc.write(newHtml);
-                doc.close();
+                // Injeksi Global Error Catcher agar pesan error AI tampil di layar, bukan cuma di Console
+                const errorCatcher = `
+                    <script>
+                        window.onerror = function(msg, url, line, col, error) {
+                            document.body.innerHTML = '<div style="color:#ff4444; background:#18181b; padding:2rem; font-family:monospace; height:100vh; overflow:auto;"><h2 style="font-weight:bold; margin-bottom:1rem; border-bottom:1px solid #3f3f46; padding-bottom:0.5rem;">🚨 Fatal Application Error</h2><p style="font-size:1.1rem; margin-bottom:1rem;">' + msg + '</p><p style="color:#a1a1aa; font-size:0.9rem; margin-bottom:0.5rem;">Location: Line ' + line + ', Column ' + col + '</p><pre style="background:#09090b; padding:1rem; border-radius:0.5rem; font-size:0.8rem; white-space:pre-wrap; border:1px solid #27272a;">' + (error && error.stack ? error.stack : 'No stack trace available') + '</pre><p style="margin-top:2rem; color:#a1a1aa; font-size:0.8rem;"><i>Silakan copy pesan error ini dan berikan ke AI sebagai instruksi revisi.</i></p></div>';
+                            return false;
+                        };
+                        const origError = console.error;
+                        console.error = function(...args) {
+                            origError.apply(console, args);
+                            const msg = args.map(a => typeof a === 'object' ? (a.message || JSON.stringify(a)) : a).join(' ');
+                            if (msg.includes('SyntaxError') || msg.includes('ReferenceError') || msg.includes('Error:')) {
+                                document.body.innerHTML = '<div style="color:#ff4444; background:#18181b; padding:2rem; font-family:monospace; height:100vh; overflow:auto;"><h2 style="font-weight:bold; margin-bottom:1rem; border-bottom:1px solid #3f3f46; padding-bottom:0.5rem;">🚨 Babel / React Compilation Error</h2><pre style="background:#09090b; padding:1rem; border-radius:0.5rem; font-size:0.8rem; white-space:pre-wrap; border:1px solid #27272a; margin-bottom:1rem;">' + msg + '</pre><p style="margin-top:1rem; color:#a1a1aa; font-size:0.8rem;"><i>Silakan copy pesan error ini dan berikan ke AI sebagai instruksi revisi.</i></p></div>';
+                            }
+                        };
+                    </script>
+                `;
+                
+                // Masukkan error catcher di head
+                let finalHtml = newHtml;
+                if (finalHtml.includes('<head>')) {
+                    finalHtml = finalHtml.replace('<head>', '<head>' + errorCatcher);
+                } else {
+                    finalHtml = errorCatcher + finalHtml;
+                }
+
+                // SPA React WAJIB dieksekusi dari awal. Menggunakan srcdoc lebih aman dari doc.write
+                iframe.srcdoc = finalHtml;
                 return;
             }
 
@@ -94,7 +118,11 @@ export default function Show({ auth, project }) {
                 return; 
             }
 
-            if (cleanHtml) updateIframeContent(cleanHtml);
+            // Gunakan setTimeout agar React sempat melakukan render dan iframeRef tidak null
+            setTimeout(() => {
+                if (cleanHtml) updateIframeContent(cleanHtml);
+            }, 50);
+
         }, 800); 
         return () => clearTimeout(handler);
     }, [livePreviewCode, isGenerating]);
@@ -314,7 +342,7 @@ export default function Show({ auth, project }) {
                                 </div>
                             </div>
                             <div className="flex gap-3">
-                                <button className="text-[10px] uppercase tracking-widest text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-500 bg-zinc-800 hover:bg-zinc-700 px-4 py-1.5 transition-all">
+                                <button onClick={() => updateIframeContent(debouncedPreviewCode)} className="text-[10px] uppercase tracking-widest text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-500 bg-zinc-800 hover:bg-zinc-700 px-4 py-1.5 transition-all">
                                     Refresh Engine
                                 </button>
                                 <button 

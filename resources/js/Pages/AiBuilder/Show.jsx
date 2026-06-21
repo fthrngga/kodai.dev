@@ -82,6 +82,9 @@ export default function Show({ auth, project }) {
                     return match;
                 });
 
+                // MEMATIKAN data-type="module" AGAR BABEL TIDAK MENGGUNAKAN react/jsx-runtime
+                finalHtml = finalHtml.replace(/<script\s+type="text\/babel"\s+data-type="module"/gi, '<script type="text/babel"');
+
                 if (finalHtml.includes('<head>')) {
                     finalHtml = finalHtml.replace('<head>', '<head>' + errorCatcher);
                 } else {

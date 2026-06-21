@@ -72,8 +72,16 @@ export default function Show({ auth, project }) {
                     </script>
                 `;
                 
-                // Masukkan error catcher di head
                 let finalHtml = newHtml;
+                
+                // Mencegah "Script error. Line 0" dengan memaksa CORS pada semua CDN
+                finalHtml = finalHtml.replace(/<script src="([^"]+)"/g, (match, url) => {
+                    if ((url.includes('unpkg.com') || url.includes('tailwindcss.com')) && !match.includes('crossorigin')) {
+                        return `<script crossorigin="anonymous" src="${url}"`;
+                    }
+                    return match;
+                });
+
                 if (finalHtml.includes('<head>')) {
                     finalHtml = finalHtml.replace('<head>', '<head>' + errorCatcher);
                 } else {

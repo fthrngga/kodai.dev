@@ -31,10 +31,15 @@ export default function Show({ auth, project }) {
         if (match) return match[1];
         
         // 2. Fallback: try to find raw HTML tags if AI forgot backticks
-        const htmlMatch = raw.match(/(<html[\s\S]*?<\/html>)/i);
+        const htmlMatch = raw.match(/(<!DOCTYPE html>|<html[\s\S]*?<\/html>|<body[\s\S]*?<\/body>)/i);
         if (htmlMatch) return htmlMatch[1];
         
-        // 3. Last resort
+        // 3. Jika belum ada tanda-tanda HTML sama sekali (masih teks obrolan), kembalikan kosong
+        if (!raw.includes('<div') && !raw.includes('<html')) {
+            return '';
+        }
+        
+        // 4. Last resort
         return raw.replace(/```(?:html)?/g, '');
     };
 
@@ -81,12 +86,12 @@ export default function Show({ auth, project }) {
             const cleanHtml = getCleanHtml(livePreviewCode);
             setDebouncedPreviewCode(cleanHtml);
             
-            // JIKA ini adalah React SPA dan masih dalam proses generate, TUNDA RENDER!
-            // Karena kode React yang terpotong (belum selesai) akan menyebabkan Babel Error (SyntaxError)
-            // dan memuat ulang CDN setiap detik akan membuat browser hang.
-            const isReactSPA = cleanHtml.includes('text/babel');
+            // Deteksi cerdas: Apakah AI menyebut "React" di teks obrolan atau sedang menulis script Babel?
+            const isReactSPA = livePreviewCode.toLowerCase().includes('react') || livePreviewCode.includes('text/babel');
+            
+            // JIKA ini adalah React SPA dan masih dalam proses generate, TUNDA RENDER IFRAME!
             if (isReactSPA && isGenerating) {
-                return; // Tunggu sampai selesai
+                return; 
             }
 
             if (cleanHtml) updateIframeContent(cleanHtml);
@@ -334,7 +339,7 @@ export default function Show({ auth, project }) {
                             <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5 pointer-events-none" />
                             
                             {/* OVERLAY LOADING UNTUK REACT SPA */}
-                            {isGenerating && debouncedPreviewCode && debouncedPreviewCode.includes('text/babel') && (
+                            {isGenerating && (livePreviewCode.toLowerCase().includes('react') || livePreviewCode.includes('text/babel')) && (
                                 <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-sm border border-cyan-500/30 m-1">
                                     <div className="w-16 h-16 border-t-2 border-b-2 border-cyan-400 rounded-full animate-spin mb-6"></div>
                                     <h3 className="text-cyan-400 font-mono font-bold tracking-widest uppercase">Kompilasi React SPA...</h3>

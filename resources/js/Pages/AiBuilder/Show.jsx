@@ -93,6 +93,15 @@ export default function Show({ auth, project }) {
                                 presets: [ [window.Babel.availablePresets['react'], { "runtime": "classic" }] ]
                             });
                         }
+                        
+                        // Mencegah Bug "Inception" (Iframe memuat Laravel)
+                        document.addEventListener('click', function(e) {
+                            const a = e.target.closest('a');
+                            if (a && a.href && !a.href.startsWith('javascript:') && !a.href.startsWith('#')) {
+                                e.preventDefault();
+                                console.warn('Navigasi eksternal diblokir di dalam Live Preview:', a.href);
+                            }
+                        });
                     </script>
                 `;
                 finalHtml = finalHtml.replace(/<script\s+type="text\/babel"[^>]*>/gi, babelConfig + '\\n<script type="text/babel" data-presets="env,classic-react">');

@@ -46,13 +46,17 @@ export default function Show({ auth, project }) {
             const doc = iframe.contentDocument;
             if (!doc) return;
 
-            if (!doc.body || doc.body.innerHTML.trim() === '') {
+            const isReactSPA = newHtml.includes('text/babel');
+
+            if (isReactSPA || !doc.body || doc.body.innerHTML.trim() === '') {
+                // SPA React WAJIB menggunakan doc.write agar browser mengeksekusi script Babel Standalone
                 doc.open();
                 doc.write(newHtml);
                 doc.close();
                 return;
             }
 
+            // Smooth DOM Diffing untuk HTML statis agar tidak berkedip (flicker)
             const parser = new DOMParser();
             const newDoc = parser.parseFromString(newHtml, 'text/html');
 
@@ -60,11 +64,9 @@ export default function Show({ auth, project }) {
             const scrollY = iframe.contentWindow.scrollY;
 
             if (newDoc.body) {
-                // Copy body attributes (crucial for Tailwind background colors on body)
                 Array.from(newDoc.body.attributes).forEach(attr => {
                     doc.body.setAttribute(attr.name, attr.value);
                 });
-                
                 doc.body.innerHTML = newDoc.body.innerHTML;
             }
 
@@ -78,10 +80,19 @@ export default function Show({ auth, project }) {
         const handler = setTimeout(() => {
             const cleanHtml = getCleanHtml(livePreviewCode);
             setDebouncedPreviewCode(cleanHtml);
+            
+            // JIKA ini adalah React SPA dan masih dalam proses generate, TUNDA RENDER!
+            // Karena kode React yang terpotong (belum selesai) akan menyebabkan Babel Error (SyntaxError)
+            // dan memuat ulang CDN setiap detik akan membuat browser hang.
+            const isReactSPA = cleanHtml.includes('text/babel');
+            if (isReactSPA && isGenerating) {
+                return; // Tunggu sampai selesai
+            }
+
             if (cleanHtml) updateIframeContent(cleanHtml);
-        }, 800); // Fast 800ms debounce since DOM injection is smooth
+        }, 800); 
         return () => clearTimeout(handler);
-    }, [livePreviewCode]);
+    }, [livePreviewCode, isGenerating]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -321,6 +332,16 @@ export default function Show({ auth, project }) {
                         {/* Iframe Wrapper */}
                         <div className="flex-1 bg-zinc-950 flex items-center justify-center relative p-1">
                             <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5 pointer-events-none" />
+                            
+                            {/* OVERLAY LOADING UNTUK REACT SPA */}
+                            {isGenerating && debouncedPreviewCode && debouncedPreviewCode.includes('text/babel') && (
+                                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-sm border border-cyan-500/30 m-1">
+                                    <div className="w-16 h-16 border-t-2 border-b-2 border-cyan-400 rounded-full animate-spin mb-6"></div>
+                                    <h3 className="text-cyan-400 font-mono font-bold tracking-widest uppercase">Kompilasi React SPA...</h3>
+                                    <p className="text-zinc-400 text-xs font-mono mt-2 text-center max-w-sm">AI sedang membangun struktur komponen yang kompleks. Live Preview ditunda hingga kode utuh agar tidak merusak engine Babel.</p>
+                                </div>
+                            )}
+
                             {debouncedPreviewCode ? (
                                 <iframe 
                                     ref={iframeRef}

@@ -74,6 +74,10 @@ export default function Show({ auth, project }) {
                 
                 let finalHtml = newHtml;
                 
+                // Self-Healing: Perbaiki URL CDN React yang sering dihalusinasi (salah ketik) oleh AI
+                finalHtml = finalHtml.replace(/react\.production\.js/g, 'react.production.min.js');
+                finalHtml = finalHtml.replace(/react-dom\.production\.js/g, 'react-dom.production.min.js');
+
                 // Mencegah "Script error. Line 0" dengan memaksa CORS pada unpkg (Tailwind CDN sering diblokir jika pakai CORS)
                 finalHtml = finalHtml.replace(/<script src="([^"]+)"/g, (match, url) => {
                     if (url.includes('unpkg.com') && !match.includes('crossorigin')) {

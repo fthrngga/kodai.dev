@@ -85,8 +85,17 @@ export default function Show({ auth, project }) {
                 // MEMATIKAN data-type="module" AGAR BABEL TIDAK MENGGUNAKAN MODULE BROWSER
                 finalHtml = finalHtml.replace(/<script\s+type="text\/babel"\s+data-type="module"/gi, '<script type="text/babel"');
 
-                // PAKSA BABEL MENGGUNAKAN CLASSIC RUNTIME (React.createElement) AGAR TIDAK ADA ERROR IMPORT jsx-runtime
-                finalHtml = finalHtml.replace(/(<script\s+type="text\/babel"[^>]*>)/gi, '$1\n/** @jsx React.createElement */\n/** @jsxFrag React.Fragment */\n');
+                // Konfigurasi Preset Babel secara Programatis untuk memaksa CLASSIC RUNTIME
+                const babelConfig = `
+                    <script>
+                        if (window.Babel) {
+                            window.Babel.registerPreset('classic-react', {
+                                presets: [ ["react", { "runtime": "classic" }] ]
+                            });
+                        }
+                    </script>
+                `;
+                finalHtml = finalHtml.replace(/<script\s+type="text\/babel"[^>]*>/gi, babelConfig + '\\n<script type="text/babel" data-presets="env,classic-react">');
 
                 if (finalHtml.includes('<head>')) {
                     finalHtml = finalHtml.replace('<head>', '<head>' + errorCatcher);

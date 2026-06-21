@@ -88,9 +88,9 @@ export default function Show({ auth, project }) {
                 // Konfigurasi Preset Babel secara Programatis untuk memaksa CLASSIC RUNTIME
                 const babelConfig = `
                     <script>
-                        if (window.Babel) {
+                        if (window.Babel && window.Babel.availablePresets) {
                             window.Babel.registerPreset('classic-react', {
-                                presets: [ ["react", { "runtime": "classic" }] ]
+                                presets: [ [window.Babel.availablePresets['react'], { "runtime": "classic" }] ]
                             });
                         }
                     </script>

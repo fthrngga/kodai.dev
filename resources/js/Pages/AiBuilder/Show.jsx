@@ -82,8 +82,11 @@ export default function Show({ auth, project }) {
                     return match;
                 });
 
-                // MEMATIKAN data-type="module" AGAR BABEL TIDAK MENGGUNAKAN react/jsx-runtime
+                // MEMATIKAN data-type="module" AGAR BABEL TIDAK MENGGUNAKAN MODULE BROWSER
                 finalHtml = finalHtml.replace(/<script\s+type="text\/babel"\s+data-type="module"/gi, '<script type="text/babel"');
+
+                // PAKSA BABEL MENGGUNAKAN CLASSIC RUNTIME (React.createElement) AGAR TIDAK ADA ERROR IMPORT jsx-runtime
+                finalHtml = finalHtml.replace(/(<script\s+type="text\/babel"[^>]*>)/gi, '$1\n/** @jsx React.createElement */\n/** @jsxFrag React.Fragment */\n');
 
                 if (finalHtml.includes('<head>')) {
                     finalHtml = finalHtml.replace('<head>', '<head>' + errorCatcher);
